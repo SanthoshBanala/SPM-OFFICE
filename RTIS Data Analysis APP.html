@@ -526,6 +526,50 @@
                 height: 300px !important;
             }
 
+            /* Collapse struck-out legends during printing - all style variations */
+            #stoppage-legend .legend-item {
+                font-size: 0.75rem !important;
+                page-break-inside: avoid !important;
+            }
+
+            #stoppage-legend .legend-item[style*="text-decoration"],
+            #stoppage-legend .legend-item[style*="line-through"],
+            #stoppage-legend .legend-item[style*="opacity"] {
+                font-size: 0 !important;
+                line-height: 0 !important;
+                width: 0 !important;
+                height: 0 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                border: 0 !important;
+                overflow: hidden !important;
+                visibility: hidden !important;
+                display: none !important;
+            }
+
+            /* Improve legend layout for printing */
+            #stoppage-legend {
+                display: flex !important;
+                flex-wrap: wrap !important;
+                justify-content: flex-start !important;
+                gap: 0 !important;
+                padding: 0.2rem 0 !important;
+                margin: 0 !important;
+            }
+
+            #stoppage-legend .legend-item {
+                flex: 0 1 auto !important;
+                display: inline-flex !important;
+                align-items: flex-start !important;
+                margin: 0 !important;
+                margin-right: 0.3rem !important;
+                margin-bottom: 0.1rem !important;
+                padding: 0.15rem 0.3rem !important;
+                font-size: 0.65rem !important;
+                line-height: 1 !important;
+                page-break-inside: avoid !important;
+            }
+
             /* Reduce container padding for print */
             .max-w-7xl {
                 max-width: 100% !important;
@@ -695,7 +739,7 @@
                         <p class="mt-2 text-sm md:text-base text-gray-600"><span
                                 class="font-medium text-blue-600 hover:text-blue-500">Tap to upload</span> or drag and
                             drop</p>
-                        <p class="text-xs text-gray-500 mt-1">RTIS, OHE, Caution, Signal, SYA, Bulk</p>
+                        <p class="text-xs text-gray-500 mt-1">RTIS Data, Signal Data</p>
                     </div>
                 </div>
             </div>
@@ -1038,6 +1082,15 @@
                     <canvas id="first30MinChart" class="chart-a4"></canvas>
                 </div>
 
+                <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-6">
+                    Brake Feel Test Analysis - First 600 Metres
+                </h3>
+                <p class="text-center text-xs md:text-sm text-gray-600 mb-4">Speed vs Distance</p>
+
+                <div class="relative mb-8 h-[300px]">
+                    <canvas id="brakeFeel600Chart" class="chart-a4"></canvas>
+                </div>
+
                 <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-2">
                     Brake Feel and Brake Power Tests Details
                 </h3>
@@ -1077,6 +1130,34 @@
                         </tbody>
                     </table>
                 </div>
+
+                <div id="brakeFeel-analysis-info" class="p-4 bg-blue-50 rounded-lg mb-4 hidden">
+                    <h4 class="text-sm font-semibold text-blue-900 mb-2">Brake Feel Test Analysis Summary</h4>
+                    <table class="w-full text-sm text-left text-blue-800">
+                        <tbody>
+                            <tr>
+                                <td class="py-1 px-2 font-medium">Initial Speed Attained:</td>
+                                <td class="py-1 px-2" id="brakeFeel-initial-speed">-</td>
+                            </tr>
+                            <tr>
+                                <td class="py-1 px-2 font-medium">Speed after Braking:</td>
+                                <td class="py-1 px-2" id="brakeFeel-final-speed">-</td>
+                            </tr>
+                            <tr>
+                                <td class="py-1 px-2 font-medium">Speed Reduction (%):</td>
+                                <td class="py-1 px-2" id="brakeFeel-speed-reduction">-</td>
+                            </tr>
+                            <tr>
+                                <td class="py-1 px-2 font-medium">Brakes Effective:</td>
+                                <td class="py-1 px-2" id="brakeFeel-effective"><span class="font-bold text-green-700">-</span></td>
+                            </tr>
+                            <tr>
+                                <td class="py-1 px-2 font-medium">Distance Covered:</td>
+                                <td class="py-1 px-2" id="brakeFeel-distance">-</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div> 
             </div>
 
             <div class="page-break"></div>
@@ -1279,7 +1360,7 @@
             const MAX_SIGNAL_DISTANCE_METERS = 30;
 
             let originalRtisData, oheData, cautionData, signalData, syaData, bulkData;
-            let allLocations, speedChart, first30MinChart, magnifiedSpeedChart, stoppingAnalysisChart;
+            let allLocations, speedChart, first30MinChart, magnifiedSpeedChart, stoppingAnalysisChart, brakeFeel600Chart;
             let speedViolations = [], brakingExceptions = [], allLabels = [], allSpeedData = [], allMaxSpeedData = [], allTimestamps = [], signalEvents = [], syaMatchEvents = [], syaPlotData = [], bulkMatchEvents = [];
 
             const fileInput = document.getElementById('file-input');
@@ -2093,6 +2174,7 @@
 
                     plotFullChart(fullAnalysis);
                     plotFirst30MinutesChart(fullAnalysis);
+                    plotBrakeFeel600Chart();
                     plotStoppingAnalysisChart();
                     displayViolations(fullAnalysis);
 
@@ -2387,6 +2469,147 @@
                 options.plugins.legend.display = fullAnalysis || (syaAnalysis && syaPlotData && syaPlotData.slice(0, endIndex).some(v => v !== null));
                 options.scales.x.type = 'category';
                 first30MinChart = plotChart('first30MinChart', data, options);
+            }
+
+            function plotBrakeFeel600Chart() {
+                // Calculate cumulative distance from start
+                let cumulativeDistance = 0;
+                let allDistances = [];
+                let allSpeeds = [];
+                
+                // Build distance and speed arrays for first 600 meters
+                for (let i = 0; i < allLocations.length; i++) {
+                    if (cumulativeDistance > 1300) break;
+                    
+                    const distance = allLocations[i].distFromPrev || 0;
+                    cumulativeDistance += distance;
+                    allDistances.push(cumulativeDistance);
+                    allSpeeds.push(allSpeedData[i] || 0);
+                }
+
+                // Find start point: first time speed > 1 KMPH
+                let startIdx = -1;
+                
+                for (let i = 0; i < allSpeeds.length; i++) {
+                    if (allSpeeds[i] > 1) {
+                        startIdx = i;
+                        break;
+                    }
+                }
+                
+                if (startIdx === -1) startIdx = 0;
+                
+                // Trim arrays to start from the identified point and limit to 600m from that point
+                const distances = [];
+                const speeds = [];
+                const distanceLabels = [];
+                const startDistance = allDistances[startIdx];
+                let graphCumulativeDistance = 0;
+                
+                for (let i = startIdx; i < allDistances.length; i++) {
+                    const relativeDistance = allDistances[i] - startDistance;
+                    
+                    if (relativeDistance > 1300) break;
+                    
+                    distances.push(relativeDistance);
+                    speeds.push(allSpeeds[i]);
+                    distanceLabels.push(Math.round(relativeDistance));
+                    graphCumulativeDistance = relativeDistance;
+                }
+
+                // Analyze brake feel test
+                const analysisInfo = {
+                    initialSpeed: 0,
+                    finalSpeed: 0,
+                    speedReduction: 0,
+                    maxSpeed: 0,
+                    maxSpeedDistance: 0,
+                    brakesEffective: false,
+                    totalDistance: graphCumulativeDistance
+                };
+
+                if (speeds.length > 0) {
+                    // Find max speed (should be between 10-15 KMPH for test to start properly)
+                    let maxSpeedIdx = 0;
+                    let maxSpeed = 0;
+                    for (let i = 0; i < speeds.length; i++) {
+                        if (speeds[i] > maxSpeed) {
+                            maxSpeed = speeds[i];
+                            maxSpeedIdx = i;
+                        }
+                    }
+                    
+                    analysisInfo.maxSpeed = maxSpeed;
+                    analysisInfo.maxSpeedDistance = distances[maxSpeedIdx];
+                    analysisInfo.initialSpeed = maxSpeed;
+                    
+                    // Find final speed (last speed in the dataset)
+                    analysisInfo.finalSpeed = speeds[speeds.length - 1];
+                    
+                    // Calculate speed reduction percentage (from max to final)
+                    if (maxSpeed > 0) {
+                        analysisInfo.speedReduction = ((maxSpeed - analysisInfo.finalSpeed) / maxSpeed) * 100;
+                    }
+                    
+                    // Check if brakes are effective (at least 30% speed reduction)
+                    analysisInfo.brakesEffective = analysisInfo.speedReduction >= 30;
+                }
+
+                // Update analysis info display
+                const analysisDiv = document.getElementById('brakeFeel-analysis-info');
+                document.getElementById('brakeFeel-initial-speed').textContent = analysisInfo.initialSpeed.toFixed(2) + ' KMPH';
+                document.getElementById('brakeFeel-final-speed').textContent = analysisInfo.finalSpeed.toFixed(2) + ' KMPH';
+                document.getElementById('brakeFeel-speed-reduction').textContent = analysisInfo.speedReduction.toFixed(1) + '%';
+                document.getElementById('brakeFeel-distance').textContent = analysisInfo.totalDistance.toFixed(0) + ' m';
+                
+                const effectiveCell = document.getElementById('brakeFeel-effective');
+                if (analysisInfo.brakesEffective) {
+                    effectiveCell.innerHTML = '<span class="font-bold text-green-700">✓ YES (≥30%)</span>';
+                } else {
+                    effectiveCell.innerHTML = '<span class="font-bold text-red-700">✗ NO (<30%)</span>';
+                }
+
+                // Create chart data
+                const datasets = [
+                    { 
+                        label: 'Train Speed (KMPH)', 
+                        data: speeds, 
+                        borderColor: '#2563eb', 
+                        backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                        tension: 0.3, 
+                        pointRadius: 1,
+                        pointBackgroundColor: '#2563eb',
+                        borderWidth: 1,
+                        fill: true
+                    }
+                ];
+
+                // Add reference zones
+                if (analysisInfo.initialSpeed > 0) {
+                    // Add line showing initial speed (for reference)
+                    datasets.push({
+                        label: 'Initial Speed',
+                        data: Array(speeds.length).fill(analysisInfo.initialSpeed),
+                        borderColor: '#f59e0b',
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        borderWidth: 1,
+                        fill: false
+                    });
+                }
+
+                const data = {
+                    labels: distanceLabels,
+                    datasets
+                };
+
+                const options = getChartOptions(null, 'Distance (Metres)', 'Speed (KMPH)');
+                options.plugins.legend.display = true;
+                options.scales.x.type = 'category';
+                options.scales.y.beginAtZero = true;
+                options.scales.y.max = 30;
+                
+                brakeFeel600Chart = plotChart('brakeFeel600Chart', data, options);
             }
 
             function displayViolations(fullAnalysis) {
@@ -2717,20 +2940,19 @@
                     const color = colors[index % colors.length];
                     //let legendLabel = `${stop.station} at ${formatTime(stop.time)}`;
                     let legendLabel = ``;
+                    let signalText = '';
                     
                     if (nextSignal) {
-                        //legendLabel += ` → Next: ${nextSignal.station} (${nextSignal.type}) - ${Math.round(nextSignal.distance)}m`;
-                        legendLabel += `${nextSignal.station} (${nextSignal.type}) - ${Math.round(nextSignal.distance)}m`;
-                        //legendLabel += `${nextSignal.station}`;
+                        signalText = `${nextSignal.station} (${nextSignal.type}) ${Math.round(nextSignal.distance)}m`;
                     }
 
                     const legendEl = document.createElement('span');
-                    legendEl.className = 'legend-item inline-flex items-center m-1 px-2 py-0.5 rounded-full text-xs font-medium';
+                    legendEl.className = 'legend-item inline-flex flex-col items-start m-1 px-2 py-0.5 rounded-full text-xs font-medium';
                     legendEl.style.backgroundColor = `${color}20`;
                     legendEl.style.color = color;
-                    legendEl.textContent = legendLabel;
+                    legendEl.innerHTML = `${signalText}<br>${formatTime(stop.time)}`;
                     legendEl.dataset.datasetIndex = datasets.length;
-                    legendEl.title = nextSignal ? `Next Signal at ${nextSignal.station}: ${nextSignal.type}, ${Math.round(nextSignal.distance)}m away` : 'No next signal found';
+                    legendEl.title = `${signalText} - Stopped at ${formatTime(stop.time)}`;
                     stoppageLegend.appendChild(legendEl);
 
                     datasets.push({
