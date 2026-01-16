@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Train Data Analysis Suite</title>
+    <title>Speed Profile Analysis - RTIS Data </title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
@@ -111,10 +111,45 @@
             opacity: 0.5;
         }
 
+        .legend-item-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+        }
+
+        .legend-item-text {
+            flex: 1;
+        }
+
+        .legend-item-delete {
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s;
+            padding: 0 0.25rem;
+            font-size: 0.875rem;
+            color: #ef4444;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        .legend-item:hover .legend-item-delete {
+            opacity: 1;
+        }
+
+        .legend-item-delete:hover {
+            opacity: 1 !important;
+            color: #dc2626;
+        }
+
         @media print {
             .legend-item.striked {
                 opacity: 0;
                 text-decoration: line-through;
+            }
+
+            .legend-item-delete {
+                display: none !important;
             }
         }
 
@@ -1074,21 +1109,58 @@
             </div>
 
             <div class="chart-section">
-                <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-4">
+                <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-4" hidden>
                     3. First 30 Minutes
                 </h2>
 
-                <div class="relative mb-8 h-[300px]">
+                <div class="relative mb-8 h-[300px] hidden">
                     <canvas id="first30MinChart" class="chart-a4"></canvas>
                 </div>
 
                 <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-6">
-                    Brake Feel Test Analysis - First 600 Metres
+                    Brake Feel Test Analysis
                 </h3>
                 <p class="text-center text-xs md:text-sm text-gray-600 mb-4">Speed vs Distance</p>
 
                 <div class="relative mb-8 h-[300px]">
                     <canvas id="brakeFeel600Chart" class="chart-a4"></canvas>
+                </div>
+
+                <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-6">
+                    Brake Power Test Analysis
+                </h3>
+                <p class="text-center text-xs md:text-sm text-gray-600 mb-4">Speed vs Distance</p>
+
+                <div class="relative mb-8 h-[300px]">
+                    <canvas id="brakePowerChart" class="chart-a4"></canvas>
+                </div>
+
+                <div id="brakePower-analysis-info" class="p-4 bg-blue-50 rounded-lg mb-4 hidden">
+                    <h4 class="text-sm font-semibold text-blue-900 mb-2">Brake Power Test Analysis Summary</h4>
+                    <table class="w-full text-sm text-left text-blue-800">
+                        <tbody>
+                            <tr>
+                                <td class="py-1 px-2 font-medium">Initial Speed Attained:</td>
+                                <td class="py-1 px-2" id="brakePower-initial-speed">-</td>
+                            </tr>
+                            <tr>
+                                <td class="py-1 px-2 font-medium">Speed after Braking:</td>
+                                <td class="py-1 px-2" id="brakePower-final-speed">-</td>
+                            </tr>
+                            <tr>
+                                <td class="py-1 px-2 font-medium">Speed Reduction (%):</td>
+                                <td class="py-1 px-2" id="brakePower-speed-reduction">-</td>
+                            </tr>
+                            <tr>
+                                <td class="py-1 px-2 font-medium">Brakes Effective:</td>
+                                <td class="py-1 px-2" id="brakePower-effective"><span class="font-bold text-green-700">-</span></td>
+                            </tr>
+                            <tr>
+                                <td class="py-1 px-2 font-medium">Distance Covered:</td>
+                                <td class="py-1 px-2" id="brakePower-distance">-</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
 
                 <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-2">
@@ -1360,7 +1432,7 @@
             const MAX_SIGNAL_DISTANCE_METERS = 30;
 
             let originalRtisData, oheData, cautionData, signalData, syaData, bulkData;
-            let allLocations, speedChart, first30MinChart, magnifiedSpeedChart, stoppingAnalysisChart, brakeFeel600Chart;
+            let allLocations, speedChart, first30MinChart, magnifiedSpeedChart, stoppingAnalysisChart, brakeFeel600Chart, brakePowerChart;
             let speedViolations = [], brakingExceptions = [], allLabels = [], allSpeedData = [], allMaxSpeedData = [], allTimestamps = [], signalEvents = [], syaMatchEvents = [], syaPlotData = [], bulkMatchEvents = [];
 
             const fileInput = document.getElementById('file-input');
@@ -2175,6 +2247,7 @@
                     plotFullChart(fullAnalysis);
                     plotFirst30MinutesChart(fullAnalysis);
                     plotBrakeFeel600Chart();
+                    plotBrakePowerChart();
                     plotStoppingAnalysisChart();
                     displayViolations(fullAnalysis);
 
@@ -2587,15 +2660,15 @@
                 // Add reference zones
                 if (analysisInfo.initialSpeed > 0) {
                     // Add line showing initial speed (for reference)
-                    datasets.push({
-                        label: 'Initial Speed',
-                        data: Array(speeds.length).fill(analysisInfo.initialSpeed),
-                        borderColor: '#f59e0b',
-                        borderDash: [5, 5],
-                        pointRadius: 0,
-                        borderWidth: 1,
-                        fill: false
-                    });
+                    // datasets.push({
+                    //     label: 'Initial Speed',
+                    //     data: Array(speeds.length).fill(analysisInfo.initialSpeed),
+                    //     borderColor: '#f59e0b',
+                    //     borderDash: [5, 5],
+                    //     pointRadius: 0,
+                    //     borderWidth: 1,
+                    //     fill: false
+                    // });
                 }
 
                 const data = {
@@ -2610,6 +2683,159 @@
                 options.scales.y.max = 30;
                 
                 brakeFeel600Chart = plotChart('brakeFeel600Chart', data, options);
+            }
+
+            function plotBrakePowerChart() {
+                // Calculate cumulative distance from start
+                let cumulativeDistance = 0;
+                let allDistances = [];
+                let allSpeeds = [];
+                
+                // Build distance and speed arrays for first 10 KMs (10000 meters)
+                for (let i = 0; i < allLocations.length; i++) {
+                    if (cumulativeDistance > 10500) break;
+                    
+                    const distance = allLocations[i].distFromPrev || 0;
+                    cumulativeDistance += distance;
+                    allDistances.push(cumulativeDistance);
+                    allSpeeds.push(allSpeedData[i] || 0);
+                }
+
+                // Find start point: first time speed reaches 60-70 KMPH range
+                let startIdx = -1;
+                
+                for (let i = 0; i < allSpeeds.length; i++) {
+                    if (allSpeeds[i] >= 60) {
+                        startIdx = i;
+                        break;
+                    }
+                }
+                
+                if (startIdx === -1) startIdx = 0;
+                
+                // Trim arrays to start from the identified point and limit to 10 KMs from that point
+                const distances = [];
+                const speeds = [];
+                const distanceLabels = [];
+                const startDistance = allDistances[startIdx];
+                let graphCumulativeDistance = 0;
+                
+                for (let i = startIdx; i < allDistances.length; i++) {
+                    const relativeDistance = allDistances[i] - startDistance;
+                    
+                    if (relativeDistance > 10000) break;
+                    
+                    distances.push(relativeDistance);
+                    speeds.push(allSpeeds[i]);
+                    distanceLabels.push(Math.round(relativeDistance));
+                    graphCumulativeDistance = relativeDistance;
+                }
+
+                // Analyze brake power test
+                const analysisInfo = {
+                    initialSpeed: 0,
+                    finalSpeed: 0,
+                    speedReduction: 0,
+                    maxSpeed: 0,
+                    maxSpeedDistance: 0,
+                    brakesEffective: false,
+                    totalDistance: graphCumulativeDistance
+                };
+
+                if (speeds.length > 0) {
+                    // Find max speed in this window (should be 60-70 KMPH for brake power test)
+                    let maxSpeedIdx = 0;
+                    let maxSpeed = 0;
+                    for (let i = 0; i < speeds.length; i++) {
+                        if (speeds[i] > maxSpeed) {
+                            maxSpeed = speeds[i];
+                            maxSpeedIdx = i;
+                        }
+                    }
+                    
+                    analysisInfo.maxSpeed = maxSpeed;
+                    analysisInfo.maxSpeedDistance = distances[maxSpeedIdx];
+                    analysisInfo.initialSpeed = maxSpeed;
+                    
+                    // Find final speed (last speed in the dataset)
+                    analysisInfo.finalSpeed = speeds[speeds.length - 1];
+                    
+                    // Calculate speed reduction percentage (from max to final)
+                    if (maxSpeed > 0) {
+                        analysisInfo.speedReduction = ((maxSpeed - analysisInfo.finalSpeed) / maxSpeed) * 100;
+                    }
+                    
+                    // Check if brakes are effective (at least 50% speed reduction for brake power test)
+                    // Since we're going from 60-70 to 30-35, we need good braking performance
+                    analysisInfo.brakesEffective = analysisInfo.speedReduction >= 50 && analysisInfo.finalSpeed <= 35;
+                }
+
+                // Update analysis info display
+                const analysisDiv = document.getElementById('brakePower-analysis-info');
+                document.getElementById('brakePower-initial-speed').textContent = analysisInfo.initialSpeed.toFixed(2) + ' KMPH';
+                document.getElementById('brakePower-final-speed').textContent = analysisInfo.finalSpeed.toFixed(2) + ' KMPH';
+                document.getElementById('brakePower-speed-reduction').textContent = analysisInfo.speedReduction.toFixed(1) + '%';
+                document.getElementById('brakePower-distance').textContent = analysisInfo.totalDistance.toFixed(0) + ' m';
+                
+                const effectiveCell = document.getElementById('brakePower-effective');
+                if (analysisInfo.brakesEffective) {
+                    effectiveCell.innerHTML = '<span class="font-bold text-green-700">✓ YES (≥50% & ≤35 KMPH)</span>';
+                } else {
+                    effectiveCell.innerHTML = '<span class="font-bold text-red-700">✗ NO (<50% or >35 KMPH)</span>';
+                }
+
+                // Create chart data
+                const datasets = [
+                    { 
+                        label: 'Train Speed (KMPH)', 
+                        data: speeds, 
+                        borderColor: '#059669', 
+                        backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                        tension: 0.3, 
+                        pointRadius: 1,
+                        pointBackgroundColor: '#059669',
+                        borderWidth: 1,
+                        fill: true
+                    }
+                ];
+
+                // Add reference zones
+                if (analysisInfo.initialSpeed > 0) {
+                    // Add line showing initial speed (for reference)
+                    datasets.push({
+                        label: 'Initial Speed',
+                        data: Array(speeds.length).fill(analysisInfo.initialSpeed),
+                        borderColor: '#f59e0b',
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        borderWidth: 1,
+                        fill: false
+                    });
+                    
+                    // Add target speed line (30-35 KMPH range center)
+                    // datasets.push({
+                    //     label: 'Target Speed (32.5 KMPH)',
+                    //     data: Array(speeds.length).fill(32.5),
+                    //     borderColor: '#06b6d4',
+                    //     borderDash: [5, 5],
+                    //     pointRadius: 0,
+                    //     borderWidth: 1,
+                    //     fill: false
+                    // });
+                }
+
+                const data = {
+                    labels: distanceLabels,
+                    datasets
+                };
+
+                const options = getChartOptions(null, 'Distance (Metres)', 'Speed (KMPH)');
+                options.plugins.legend.display = true;
+                options.scales.x.type = 'category';
+                options.scales.y.beginAtZero = true;
+                options.scales.y.max = 80;
+                
+                brakePowerChart = plotChart('brakePowerChart', data, options);
             }
 
             function displayViolations(fullAnalysis) {
@@ -2950,7 +3176,7 @@
                     legendEl.className = 'legend-item inline-flex flex-col items-start m-1 px-2 py-0.5 rounded-full text-xs font-medium';
                     legendEl.style.backgroundColor = `${color}20`;
                     legendEl.style.color = color;
-                    legendEl.innerHTML = `${signalText}<br>${formatTime(stop.time)}`;
+                    legendEl.innerHTML = `<div class="legend-item-content"><div class="legend-item-text">${signalText}<br>${formatTime(stop.time)}</div><span class="legend-item-delete" title="Click to delete this dataset">✕</span></div>`;
                     legendEl.dataset.datasetIndex = datasets.length;
                     legendEl.title = `${signalText} - Stopped at ${formatTime(stop.time)}`;
                     stoppageLegend.appendChild(legendEl);
@@ -3291,7 +3517,14 @@
                 stoppingAnalysisChart = plotChart('stoppingAnalysisChart', { datasets }, options, [signalLabelPlugin]);
 
                 stoppageLegend.querySelectorAll('.legend-item').forEach(item => {
-                    item.addEventListener('click', () => {
+                    // Handle left-click to toggle visibility
+                    item.addEventListener('click', (e) => {
+                        // Don't toggle if clicking the delete button
+                        if (e.target.classList.contains('legend-item-delete')) {
+                            e.stopPropagation();
+                            return;
+                        }
+
                         const clickedIndex = parseInt(item.dataset.datasetIndex);
                         const clickedDataset = stoppingAnalysisChart.data.datasets[clickedIndex];
 
@@ -3319,6 +3552,56 @@
 
                         stoppingAnalysisChart.update();
                     });
+
+                    // Handle delete button click
+                    const deleteBtn = item.querySelector('.legend-item-delete');
+                    if (deleteBtn) {
+                        deleteBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            
+                            const datasetIndex = parseInt(item.dataset.datasetIndex);
+                            const stopIndex = stoppingAnalysisChart.data.datasets[datasetIndex].stopIndex;
+
+                            // Remove dataset from chart
+                            stoppingAnalysisChart.data.datasets.splice(datasetIndex, 1);
+
+                            // Also remove any associated signal datasets for this stop
+                            for (let i = stoppingAnalysisChart.data.datasets.length - 1; i >= 0; i--) {
+                                const ds = stoppingAnalysisChart.data.datasets[i];
+                                if (ds.isSignalDataset && ds.stopIndex === stopIndex) {
+                                    stoppingAnalysisChart.data.datasets.splice(i, 1);
+                                }
+                            }
+
+                            // Remove legend item from DOM
+                            item.remove();
+
+                            // Update dataset indices for remaining legend items
+                            stoppageLegend.querySelectorAll('.legend-item').forEach((legendItem, idx) => {
+                                // Find the correct dataset index based on position
+                                let correctIndex = 0;
+                                for (let i = 0; i < stoppingAnalysisChart.data.datasets.length; i++) {
+                                    if (!stoppingAnalysisChart.data.datasets[i].isSignalDataset && !stoppingAnalysisChart.data.datasets[i].isCommonStarterSignal) {
+                                        if (correctIndex === idx) {
+                                            legendItem.dataset.datasetIndex = i;
+                                            break;
+                                        }
+                                        correctIndex++;
+                                    }
+                                }
+                            });
+
+                            // Update toggle button state
+                            const allLegends = stoppageLegend.querySelectorAll('.legend-item');
+                            const allHidden = Array.from(allLegends).every(l => l.classList.contains('striked'));
+                            const toggleBtn = document.getElementById('toggle-all-brake-legends');
+                            if (toggleBtn) {
+                                toggleBtn.classList.toggle('active', allHidden && allLegends.length > 0);
+                            }
+
+                            stoppingAnalysisChart.update();
+                        });
+                    }
                 });
 
                 // Handle toggle all button
