@@ -69,6 +69,51 @@
             }
         }
 
+        /* Page blocking loading overlay */
+        #page-loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            cursor: wait;
+        }
+
+        #page-loading-overlay.active {
+            display: flex;
+        }
+
+        #page-loading-overlay .overlay-spinner {
+            width: 64px;
+            height: 64px;
+            border: 6px solid #e5e7eb;
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        #page-loading-overlay .overlay-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        #page-loading-overlay .overlay-text {
+            margin-top: 1rem;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #374151;
+        }
+
         .violation-row:hover {
             cursor: pointer;
             background-color: #f9fafb;
@@ -747,6 +792,14 @@
 </head>
 
 <body class="p-2 md:p-6">
+
+    <!-- Page blocking loading overlay -->
+    <div id="page-loading-overlay">
+        <div class="overlay-content">
+            <div class="overlay-spinner"></div>
+            <p class="overlay-text">Processing...</p>
+        </div>
+    </div>
 
     <div
         class="max-w-7xl mx-auto bg-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-lg md:shadow-2xl space-y-1 md:space-y-1">
@@ -3654,87 +3707,19 @@
                 const toggleAllBtn = document.getElementById('toggle-all-brake-legends');
                 if (toggleAllBtn) {
                     toggleAllBtn.addEventListener('click', () => {
-                        const allLegends = stoppageLegend.querySelectorAll('.legend-item');
-                        const isCurrentlyAllHidden = Array.from(allLegends).every(l => l.classList.contains('striked'));
+                        // Show loading overlay
+                        const overlay = document.getElementById('page-loading-overlay');
+                        if (overlay) overlay.classList.add('active');
 
-                        allLegends.forEach(legendItem => {
-                            const clickedIndex = parseInt(legendItem.dataset.datasetIndex);
-                            const dataset = stoppingAnalysisChart.data.datasets[clickedIndex];
+                        // Use setTimeout to allow the overlay to render before heavy processing
+                        setTimeout(() => {
+                            const allLegends = stoppageLegend.querySelectorAll('.legend-item');
+                            const isCurrentlyAllHidden = Array.from(allLegends).every(l => l.classList.contains('striked'));
 
-                            // Set hidden state based on current state
-                            if (isCurrentlyAllHidden) {
-                                // If all are hidden, show all
-                                dataset.hidden = false;
-                                legendItem.classList.remove('striked');
-                            } else {
-                                // If not all are hidden, hide all
-                                dataset.hidden = true;
-                                legendItem.classList.add('striked');
-                            }
+                            allLegends.forEach(legendItem => {
+                                const clickedIndex = parseInt(legendItem.dataset.datasetIndex);
+                                const dataset = stoppingAnalysisChart.data.datasets[clickedIndex];
 
-                            // Also toggle signal markers for this specific stop
-                            const stopIndex = dataset.stopIndex;
-                            stoppingAnalysisChart.data.datasets.forEach((ds, idx) => {
-                                if (ds.isSignalDataset && ds.stopIndex === stopIndex) {
-                                    ds.hidden = dataset.hidden;
-                                }
-                            });
-                        });
-
-                        // Update toggle button state
-                        const allNowHidden = Array.from(allLegends).every(l => l.classList.contains('striked'));
-                        toggleAllBtn.classList.toggle('active', allNowHidden && allLegends.length > 0);
-
-                        stoppingAnalysisChart.update();
-                    });
-                }
-
-                // Handle toggle Home Signals chart button
-                const toggleHomeSignalsBtn = document.getElementById('toggle-home-signals-chart');
-                if (toggleHomeSignalsBtn) {
-                    toggleHomeSignalsBtn.addEventListener('click', () => {
-                        const chartContainer = document.getElementById('home-signals-chart-container');
-                        const parentSection = toggleHomeSignalsBtn.closest('.chart-section');
-                        if (chartContainer) {
-                            chartContainer.classList.toggle('hidden');
-                            if (!chartContainer.classList.contains('hidden')) {
-                                toggleHomeSignalsBtn.textContent = 'Hide Home Signals';
-                                // Adjust parent section height to accommodate both charts
-                                if (parentSection) {
-                                    parentSection.style.minHeight = 'auto';
-                                }
-                                // Resize chart when it becomes visible
-                                if (homeSignalsAnalysisChart) {
-                                    setTimeout(() => {
-                                        homeSignalsAnalysisChart.resize();
-                                    }, 100);
-                                }
-                            } else {
-                                toggleHomeSignalsBtn.textContent = 'Show Home Signals';
-                                // Reset parent section height
-                                if (parentSection) {
-                                    parentSection.style.minHeight = '';
-                                }
-                            }
-                        }
-                    });
-                }
-
-                // Handle toggle all button for home signals legends
-                const toggleAllHomeBtn = document.getElementById('toggle-all-home-legends');
-                const homeStoppageLegend = document.getElementById('home-stoppage-legend');
-                if (toggleAllHomeBtn && homeStoppageLegend) {
-                    toggleAllHomeBtn.addEventListener('click', () => {
-                        if (!homeSignalsAnalysisChart) return;
-                        
-                        const allLegends = homeStoppageLegend.querySelectorAll('.legend-item');
-                        const isCurrentlyAllHidden = Array.from(allLegends).every(l => l.classList.contains('striked'));
-
-                        allLegends.forEach(legendItem => {
-                            const clickedIndex = parseInt(legendItem.dataset.datasetIndex);
-                            const dataset = homeSignalsAnalysisChart.data.datasets[clickedIndex];
-
-                            if (dataset) {
                                 // Set hidden state based on current state
                                 if (isCurrentlyAllHidden) {
                                     // If all are hidden, show all
@@ -3748,19 +3733,119 @@
 
                                 // Also toggle signal markers for this specific stop
                                 const stopIndex = dataset.stopIndex;
-                                homeSignalsAnalysisChart.data.datasets.forEach((ds, idx) => {
+                                stoppingAnalysisChart.data.datasets.forEach((ds, idx) => {
                                     if (ds.isSignalDataset && ds.stopIndex === stopIndex) {
                                         ds.hidden = dataset.hidden;
                                     }
                                 });
+                            });
+
+                            // Update toggle button state
+                            const allNowHidden = Array.from(allLegends).every(l => l.classList.contains('striked'));
+                            toggleAllBtn.classList.toggle('active', allNowHidden && allLegends.length > 0);
+
+                            stoppingAnalysisChart.update();
+
+                            // Hide loading overlay after processing
+                            if (overlay) overlay.classList.remove('active');
+                        }, 50);
+                    });
+                }
+
+                // Handle toggle Home Signals chart button
+                const toggleHomeSignalsBtn = document.getElementById('toggle-home-signals-chart');
+                if (toggleHomeSignalsBtn) {
+                    toggleHomeSignalsBtn.addEventListener('click', () => {
+                        // Show loading overlay
+                        const overlay = document.getElementById('page-loading-overlay');
+                        if (overlay) overlay.classList.add('active');
+
+                        // Use setTimeout to allow the overlay to render before heavy processing
+                        setTimeout(() => {
+                            const chartContainer = document.getElementById('home-signals-chart-container');
+                            const parentSection = toggleHomeSignalsBtn.closest('.chart-section');
+                            if (chartContainer) {
+                                chartContainer.classList.toggle('hidden');
+                                if (!chartContainer.classList.contains('hidden')) {
+                                    toggleHomeSignalsBtn.textContent = 'Hide Home Signals';
+                                    // Adjust parent section height to accommodate both charts
+                                    if (parentSection) {
+                                        parentSection.style.minHeight = 'auto';
+                                    }
+                                    // Resize chart when it becomes visible
+                                    if (homeSignalsAnalysisChart) {
+                                        setTimeout(() => {
+                                            homeSignalsAnalysisChart.resize();
+                                            // Hide loading overlay after chart resize
+                                            if (overlay) overlay.classList.remove('active');
+                                        }, 100);
+                                        return; // Exit early, overlay will be hidden after resize
+                                    }
+                                } else {
+                                    toggleHomeSignalsBtn.textContent = 'Show Home Signals';
+                                    // Reset parent section height
+                                    if (parentSection) {
+                                        parentSection.style.minHeight = '';
+                                    }
+                                }
                             }
-                        });
+                            // Hide loading overlay after processing
+                            if (overlay) overlay.classList.remove('active');
+                        }, 50);
+                    });
+                }
 
-                        // Update toggle button state
-                        const allNowHidden = Array.from(allLegends).every(l => l.classList.contains('striked'));
-                        toggleAllHomeBtn.classList.toggle('active', allNowHidden && allLegends.length > 0);
+                // Handle toggle all button for home signals legends
+                const toggleAllHomeBtn = document.getElementById('toggle-all-home-legends');
+                const homeStoppageLegend = document.getElementById('home-stoppage-legend');
+                if (toggleAllHomeBtn && homeStoppageLegend) {
+                    toggleAllHomeBtn.addEventListener('click', () => {
+                        if (!homeSignalsAnalysisChart) return;
+                        
+                        // Show loading overlay
+                        const overlay = document.getElementById('page-loading-overlay');
+                        if (overlay) overlay.classList.add('active');
 
-                        homeSignalsAnalysisChart.update();
+                        // Use setTimeout to allow the overlay to render before heavy processing
+                        setTimeout(() => {
+                            const allLegends = homeStoppageLegend.querySelectorAll('.legend-item');
+                            const isCurrentlyAllHidden = Array.from(allLegends).every(l => l.classList.contains('striked'));
+
+                            allLegends.forEach(legendItem => {
+                                const clickedIndex = parseInt(legendItem.dataset.datasetIndex);
+                                const dataset = homeSignalsAnalysisChart.data.datasets[clickedIndex];
+
+                                if (dataset) {
+                                    // Set hidden state based on current state
+                                    if (isCurrentlyAllHidden) {
+                                        // If all are hidden, show all
+                                        dataset.hidden = false;
+                                        legendItem.classList.remove('striked');
+                                    } else {
+                                        // If not all are hidden, hide all
+                                        dataset.hidden = true;
+                                        legendItem.classList.add('striked');
+                                    }
+
+                                    // Also toggle signal markers for this specific stop
+                                    const stopIndex = dataset.stopIndex;
+                                    homeSignalsAnalysisChart.data.datasets.forEach((ds, idx) => {
+                                        if (ds.isSignalDataset && ds.stopIndex === stopIndex) {
+                                            ds.hidden = dataset.hidden;
+                                        }
+                                    });
+                                }
+                            });
+
+                            // Update toggle button state
+                            const allNowHidden = Array.from(allLegends).every(l => l.classList.contains('striked'));
+                            toggleAllHomeBtn.classList.toggle('active', allNowHidden && allLegends.length > 0);
+
+                            homeSignalsAnalysisChart.update();
+
+                            // Hide loading overlay after processing
+                            if (overlay) overlay.classList.remove('active');
+                        }, 50);
                     });
                 }
 
