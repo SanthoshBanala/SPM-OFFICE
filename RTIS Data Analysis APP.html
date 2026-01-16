@@ -1,0 +1,3239 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Train Data Analysis Suite</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
+    <script src='https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js'></script>
+    <style>
+        body {
+            background-color: #f3f4f6;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+ 
+        /* Mobile-first Chart Height */
+        .chart-a4 {
+            width: 100%;
+            height: 300px;
+            display: block;
+        }
+
+        /* Desktop Chart Height */
+        @media (min-width: 768px) {
+            .chart-a4 {
+                height: 500px;
+                max-height: 80vh;
+            }
+        }
+
+        canvas {
+            background-color: #ffffff;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            touch-action: pan-y;
+            display: block;
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        /* Ensure chart containers respect parent boundaries */
+        div.relative {
+            overflow: hidden;
+        }
+
+        /* Constrain canvas size to parent container */
+        div.relative canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        #loading-spinner {
+            border-top-color: #3b82f6;
+            -webkit-animation: spin 1s linear infinite;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .violation-row:hover {
+            cursor: pointer;
+            background-color: #f9fafb;
+        }
+
+        /* Improved spacing for mobile */
+        .chart-section {
+            padding: 1rem;
+            margin-top: 1rem;
+            border-radius: 0.75rem;
+            background-color: white;
+            box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+            page-break-inside: avoid;
+        }
+
+        @media print {
+            .page-break {
+                break-before: page;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .chart-section {
+                padding: 1.5rem;
+                margin-top: 1.5rem;
+            }
+        }
+
+        .legend-item {
+            cursor: pointer;
+            transition: background-color 0.2s;
+            white-space: nowrap;
+        }
+
+        .legend-item.highlighted {
+            font-weight: bold;
+        }
+
+        .legend-item.striked {
+            text-decoration: line-through;
+            opacity: 0.5;
+        }
+
+        @media print {
+            .legend-item.striked {
+                opacity: 0;
+                text-decoration: line-through;
+            }
+        }
+
+        .toggle-all-legends {
+            cursor: pointer;
+            transition: background-color 0.2s;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border: 1px solid #e5e7eb;
+            background-color: #f3f4f6;
+            color: #374151;
+        }
+
+        .toggle-all-legends:hover {
+            background-color: #e5e7eb;
+        }
+
+        .toggle-all-legends.active {
+            background-color: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+
+        .print-brake-analysis {
+            cursor: pointer;
+            transition: background-color 0.2s;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border: 1px solid #e5e7eb;
+            background-color: #f3f4f6;
+            color: #374151;
+        }
+
+        .print-brake-analysis:hover {
+            background-color: #10b981;
+            color: white;
+            border-color: #10b981;
+        }
+
+        /* Horizontal scroll for tables on mobile */
+        .table-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Increase font size and center text specifically for tables with id 'speedTable' */
+        /* Applies to duplicated IDs as well; uses !important to override Tailwind classes */ 
+        #speedTable,
+        #speedTable th,
+        #speedTable td {
+            font-size: 0.9rem !important;
+            text-align: center !important;
+        }
+
+        #speedTable input,
+        #speedTable textarea,
+        #speedTable select {
+            font-size: 0.9rem !important;
+            text-align: center !important;
+        }
+
+        /* Speed Analysis Common Fields Section */
+        .speed-analysis-common-fields {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 0.5rem;
+            padding: 0.5rem;
+            background-color: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .speed-analysis-common-fields .field-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .speed-analysis-common-fields .field-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #374151;
+            text-transform: uppercase;
+            margin-bottom: 0.25rem;
+        }
+
+        .speed-analysis-common-fields .field-input {
+            width: 100%;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            padding: 0.5rem;
+            font-size: 0.875rem;
+            text-align: center;
+        }
+
+        /* Speed Analysis Table Styles */
+        .speed-analysis-table {
+            table-layout: fixed !important;
+            width: 100% !important;
+            border-collapse: collapse !important;
+            font-size: 1rem !important;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif !important;
+        }
+
+        .speed-analysis-table th,
+        .speed-analysis-table td {
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+            white-space: normal !important;
+            text-align: center !important;
+            vertical-align: middle !important;
+            padding: 0 !important;
+            border: 1px solid #d1d5db !important;
+            font-size: 1rem !important;
+            color: #374151 !important;
+            line-height: 1.2 !important;
+        }
+
+        .speed-analysis-table thead th {
+            background-color: #f3f4f6 !important;
+            font-weight: 600 !important;
+            font-size: 1rem !important;
+            text-transform: none !important;
+            color: #374151 !important;
+            line-height: 1.2 !important;
+        }
+
+        .speed-analysis-table td textarea {
+            min-width: 100% !important;
+            width: 100% !important;
+            height: 35px !important;
+            padding: 0 !important;
+            font-size: 1rem !important;
+            text-align: center !important;
+            border: 1px solid #d1d5db !important;
+            border-radius: 0.25rem !important;
+            resize: none !important;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif !important;
+            color: #374151 !important;
+            line-height: 1.2 !important;
+        }
+
+        /* Column widths: 1 unit for regular columns, 3 units for Remarks */
+        /* Total: S No(1) + Station(1) + DY(1) + SY(1) + Crossover(1) + Remarks(3) + Actions(0.5) = 9.5 units */
+        .speed-analysis-table th:nth-child(1),
+        .speed-analysis-table td:nth-child(1) {
+            width: 10%;
+        }
+
+        
+        .speed-analysis-table th:nth-child(3),
+        .speed-analysis-table td:nth-child(3),
+        .speed-analysis-table th:nth-child(4),
+        .speed-analysis-table td:nth-child(4),
+        .speed-analysis-table th:nth-child(5),
+        .speed-analysis-table td:nth-child(5),
+        .speed-analysis-table th:nth-child(6),
+        .speed-analysis-table td:nth-child(6) {
+            width: 9%;
+        }
+        .speed-analysis-table th:nth-child(2),
+        .speed-analysis-table td:nth-child(2) {
+            width: 23%;
+        }
+
+        /* Remarks column - 3x wider */
+        .speed-analysis-table th:nth-child(7),
+        .speed-analysis-table td:nth-child(7) {
+            width: 30%;
+        }
+
+        /* Actions column */
+        .speed-analysis-table th:nth-child(8),
+        .speed-analysis-table td:nth-child(8) {
+            width: 3%;
+        }
+
+        /* Unified Data Table Styles - Applied to all tables */
+        .data-table {
+            table-layout: fixed !important;
+            width: 100% !important;
+            border-collapse: collapse !important;
+            font-size: 1rem !important;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif !important;
+        }
+
+        .data-table th,
+        .data-table td {
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+            white-space: normal !important;
+            text-align: center !important;
+            vertical-align: middle !important;
+            padding: 0 !important;
+            border: 1px solid #d1d5db !important;
+            font-size: 1rem !important;
+            color: #374151 !important;
+            line-height: 1.2 !important;
+        }
+
+        .data-table thead th {
+            background-color: #f3f4f6 !important;
+            font-weight: 600 !important;
+            font-size: 1rem !important;
+            text-transform: none !important;
+            color: #374151 !important;
+            line-height: 1.2 !important;
+        }
+
+        .data-table td textarea {
+            min-width: 100% !important;
+            width: 100% !important;
+            height: 35px !important;
+            padding: 0 !important;
+            font-size: 1rem !important;
+            text-align: center !important;
+            border: 1px solid #d1d5db !important;
+            border-radius: 0.25rem !important;
+            resize: none !important;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif !important;
+            color: #374151 !important;
+            line-height: 1.2 !important;
+        }
+
+        /* PSR-TSR Table Column Widths */
+        /* Total: 6 cols × 11.67% = 70% + Remarks 25% + Actions 5% = 100% */
+        .psr-tsr-table th:nth-child(1),
+        .psr-tsr-table td:nth-child(1),
+        .psr-tsr-table th:nth-child(2),
+        .psr-tsr-table td:nth-child(2),
+        .psr-tsr-table th:nth-child(3),
+        .psr-tsr-table td:nth-child(3),
+        .psr-tsr-table th:nth-child(4),
+        .psr-tsr-table td:nth-child(4),
+        .psr-tsr-table th:nth-child(5),
+        .psr-tsr-table td:nth-child(5),
+        .psr-tsr-table th:nth-child(6),
+        .psr-tsr-table td:nth-child(6) {
+            width: 11.67%;
+        }
+
+        /* Remarks column - 3x wider */
+        .psr-tsr-table th:nth-child(7),
+        .psr-tsr-table td:nth-child(7) {
+            width: 35%;
+        }
+
+        /* Actions column */
+        .psr-tsr-table th:nth-child(8),
+        .psr-tsr-table td:nth-child(8) {
+            width: 5%;
+        }
+
+        /* Overspeed Table Column Widths */
+        /* Total: 6 cols × 11.67% = 70% + Remarks 25% + Actions 5% = 100% */
+        .overspeed-table th:nth-child(1),
+        .overspeed-table td:nth-child(1),
+        .overspeed-table th:nth-child(2),
+        .overspeed-table td:nth-child(2),
+        .overspeed-table th:nth-child(3),
+        .overspeed-table td:nth-child(3),
+        .overspeed-table th:nth-child(4),
+        .overspeed-table td:nth-child(4),
+        .overspeed-table th:nth-child(5),
+        .overspeed-table td:nth-child(5),
+        .overspeed-table th:nth-child(6),
+        .overspeed-table td:nth-child(6) {
+            width: 11.67%;
+        }
+
+        /* Remarks column - 3x wider */
+        .overspeed-table th:nth-child(7),
+        .overspeed-table td:nth-child(7) {
+            width: 35%;
+        }
+
+        /* Actions column */
+        .overspeed-table th:nth-child(8),
+        .overspeed-table td:nth-child(8) {
+            width: 5%;
+        }
+
+        /* Brake Analysis Table Styles */
+        .brake-analysis-table {
+            table-layout: fixed !important;
+            width: 100%;
+            border-collapse: collapse;
+            overflow: hidden;
+            font-size: 0.75rem;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+        }
+
+        .brake-analysis-table th,
+        .brake-analysis-table td {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            white-space: normal;
+            text-align: left;
+            vertical-align: middle;
+            padding: 0;
+            border: 1px solid #d1d5db;
+            font-size: 0.75rem;
+            color: #374151;
+        }
+
+        .brake-analysis-table thead th {
+            background-color: #f3f4f6;
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: none;
+            color: #374151;
+        }
+
+        .brake-analysis-table td textarea {
+            min-width: 100% !important;
+            width: 100% !important;
+            height: 45px !important;
+            padding: 0 !important;
+            font-size: 0.75rem !important;
+            text-align: left;
+            border: 1px solid #d1d5db;
+            border-radius: 0.25rem;
+            resize: none;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+            color: #000000;
+        }
+
+        /* Column widths: Equal width for columns 1-5, 3x for Remarks, fixed for Actions */
+        /* Total: 5 cols × 11% = 55% + Remarks 33% + Actions 12% = 100% */
+        
+        /* S No column */
+        .brake-analysis-table th:nth-child(1),
+        .brake-analysis-table td:nth-child(1) {
+            width: 12%;
+        }
+
+        /* Station, DY, SY, Crossover - equal width */
+        .brake-analysis-table th:nth-child(2),
+        .brake-analysis-table td:nth-child(2),
+        .brake-analysis-table th:nth-child(3),
+        .brake-analysis-table td:nth-child(3),
+        .brake-analysis-table th:nth-child(4),
+        .brake-analysis-table td:nth-child(4),
+        .brake-analysis-table th:nth-child(5),
+        .brake-analysis-table td:nth-child(5) {
+            width: 12%;
+        }
+
+        /* Remarks column - 3x wider (33%) */
+        .brake-analysis-table th:nth-child(6),
+        .brake-analysis-table td:nth-child(6) {
+            width: 33%;
+        }
+
+        /* Actions column - fixed width for +/- buttons */
+        .brake-analysis-table th:nth-child(7),
+        .brake-analysis-table td:nth-child(7) {
+            width: 6%;
+            min-width: 60px;
+        }
+
+        /* Resizer handle for manual column resizing */
+        .col-resizer {
+            position: absolute;
+            right: 0;
+            top: 0;
+            height: 100%;
+            width: 8px;
+            cursor: col-resize;
+            user-select: none;
+            touch-action: none;
+            /* make it easier to grab on small screens */
+            background: transparent;
+        }
+
+        @media print {
+            @page {
+                size: A4;
+                margin: 0.5cm;
+            }
+
+            body {
+                background-color: #ffffff;
+                margin: 0;
+                padding: 0.25cm;
+                width: 100%;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+
+            #trip-details-section {
+                display: block !important;
+            }
+
+            .chart-section,
+            canvas {
+                background-color: #ffffff !important;
+                box-shadow: none !important;
+                border: 1px solid #e2e8f0;
+            }
+
+            .chart-a4 {
+                height: 300px !important;
+            }
+
+            /* Reduce container padding for print */
+            .max-w-7xl {
+                max-width: 100% !important;
+                padding: 0.25cm !important;
+                margin: 0 !important;
+                box-shadow: none !important;
+            }
+
+            /* Allow tables to break across pages during printing */
+            .table-container {
+                overflow: visible !important;
+                page-break-inside: auto !important;
+                width: 100% !important;
+                margin: 0.25cm 0 !important;
+                padding: 0 !important;
+            }
+
+            .table-container table {
+                page-break-inside: auto !important;
+                width: 100% !important;
+                border-collapse: collapse !important;
+                font-size: 0.7rem !important;
+            }
+
+            .table-container tbody {
+                page-break-inside: auto !important;
+            }
+
+            .table-container tr {
+                page-break-inside: avoid !important;
+                page-break-after: auto !important;
+            }
+
+            /* Ensure table cells don't get truncated during printing */
+            .table-container td,
+            .table-container th {
+                page-break-inside: avoid !important;
+                overflow: visible !important;
+                white-space: normal !important;
+                word-wrap: break-word !important;
+                overflow-wrap: break-word !important;
+                padding: 0.15rem !important;
+                font-size: 0.7rem !important;
+                border: 0.5px solid #d1d5db !important;
+            }
+
+            /* Speed Analysis Table Print Styles */
+            .speed-analysis-table {
+                table-layout: fixed !important;
+                width: 100% !important;
+                font-size: 0.7rem !important;
+            }
+
+            .speed-analysis-table th {
+                font-size: 0.65rem !important;
+                padding: 0.15rem !important;
+                font-weight: 700 !important;
+                background-color: #f3f4f6 !important;
+            }
+
+            .speed-analysis-table td {
+                padding: 0.15rem !important;
+                font-size: 0.7rem !important;
+            }
+
+            .speed-analysis-table td textarea {
+                height: auto !important;
+                min-height: 20px !important;
+                max-height: 40px !important;
+                font-size: 0.7rem !important;
+                padding: 1px !important;
+                border: 0.5px solid #d1d5db !important;
+                overflow: visible !important;
+            }
+
+            /* Brake Analysis Table Print Styles */
+            .brake-analysis-table {
+                table-layout: fixed !important;
+                width: 100% !important;
+                font-size: 0.7rem !important;
+            }
+
+            .brake-analysis-table th {
+                font-size: 0.65rem !important;
+                padding: 0.15rem !important;
+                font-weight: 700 !important;
+                background-color: #f3f4f6 !important;
+            }
+
+            .brake-analysis-table td {
+                padding: 0.15rem !important;
+                font-size: 0.7rem !important;
+            }
+
+            .brake-analysis-table td textarea {
+                height: auto !important;
+                min-height: 20px !important;
+                max-height: 40px !important;
+                font-size: 0.7rem !important;
+                padding: 1px !important;
+                border: 0.5px solid #d1d5db !important;
+                overflow: visible !important;
+            }
+
+            /* Unified Data Table Print Styles */
+            .data-table {
+                table-layout: fixed !important;
+                width: 100% !important;
+                font-size: 0.7rem !important;
+            }
+
+            .data-table th {
+                font-size: 0.65rem !important;
+                padding: 0.15rem !important;
+                font-weight: 700 !important;
+                background-color: #f3f4f6 !important;
+            }
+
+            .data-table td {
+                padding: 0.15rem !important;
+                font-size: 0.7rem !important;
+            }
+
+            .data-table td textarea {
+                height: auto !important;
+                min-height: 20px !important;
+                max-height: 40px !important;
+                font-size: 0.7rem !important;
+                padding: 1px !important;
+                border: 0.5px solid #d1d5db !important;
+                overflow: visible !important;
+            }
+        }
+    </style>
+</head>
+
+<body class="p-2 md:p-6">
+
+    <div
+        class="max-w-7xl mx-auto bg-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-lg md:shadow-2xl space-y-1 md:space-y-1">
+        <h1 class="text-2xl md:text-3xl font-bold text-blue-800 text-center">South Western Railway</h1>
+        <h2 class="text-2xl md:text-2xl font-bold text-blue-800 text-center">UBL Division</h2>
+        <h2 class="text-2xl md:text-2xl font-bold text-blue-800 text-center">Train Run Analysis</h2>
+        <p class="text-sm md:text-lg text-gray-600 text-center">Analysis of speed, performance, and violations.</p>
+
+        <div id="trip-details-section" class="hidden px-3 md:px-4 py-2 md:py-3 border-l-4 border-indigo-400 bg-indigo-50 rounded-lg">
+            <h3 class="text-lg md:text-xl font-bold text-indigo-800 mb-3">Trip Details</h3>
+            <div id="trip-details-content"
+                class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 text-sm">
+            </div>
+        </div>
+
+        <div class="flex flex-col items-center space-y-4 border-b pb-6 no-print">
+            <div class="w-full">
+                <label class="block text-base md:text-lg font-semibold text-gray-700">Step 1: Select your data
+                    file(s)</label>
+                <div id="file-drop-area"
+                    class="mt-2 flex justify-center px-4 py-6 md:px-6 border-2 border-gray-300 border-dashed rounded-xl cursor-pointer hover:border-blue-500 transition-colors duration-200 active:bg-blue-50">
+                    <input id="file-input" type="file" multiple class="hidden" accept=".csv">
+                    <div id="file-click-trigger" class="text-center">
+                        <svg class="mx-auto h-10 w-10 md:h-12 md:w-12 text-gray-400" stroke="currentColor" fill="none"
+                            viewBox="0 0 48 48" aria-hidden="true">
+                            <path
+                                d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m-4-4h2m-2 4h-2"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        <p class="mt-2 text-sm md:text-base text-gray-600"><span
+                                class="font-medium text-blue-600 hover:text-blue-500">Tap to upload</span> or drag and
+                            drop</p>
+                        <p class="text-xs text-gray-500 mt-1">RTIS, OHE, Caution, Signal, SYA, Bulk</p>
+                    </div>
+                </div>
+            </div>
+            <div id="file-list" class="mt-2 text-sm md:text-base text-gray-500 text-center break-all">No files selected.
+            </div>
+        </div>
+
+        <div id="station-selection-section" class="hidden no-print p-3 md:p-4 bg-gray-50 rounded-lg">
+            <h3 class="text-base md:text-lg font-semibold text-gray-700 mb-2">Step 2: Select Range</h3>
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                <div class="md:col-span-3">
+                    <label for="start-station" class="block text-sm font-medium text-gray-700">Start Station</label>
+                    <select id="start-station"
+                        class="mt-1 block w-full pl-3 pr-10 py-3 md:py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md bg-white"></select>
+                </div>
+                <div class="md:col-span-2">
+                    <label for="start-time-override" class="block text-sm font-medium text-gray-700">Manual Time (HH:MM:SS)</label>
+                    <input type="text" id="start-time-override" placeholder="05:30:00"
+                        class="mt-1 block w-full pl-3 pr-10 py-3 md:py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md bg-white" />
+                </div>
+                <div class="md:col-span-3">
+                    <label for="end-station" class="block text-sm font-medium text-gray-700">End Station</label>
+                    <select id="end-station"
+                        class="mt-1 block w-full pl-3 pr-10 py-3 md:py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md bg-white"></select>
+                </div>
+                <div class="md:col-span-2">
+                    <label for="end-time-override" class="block text-sm font-medium text-gray-700">Manual Time(HH:MM:SS)</label>
+                    <input type="text" id="end-time-override" placeholder="06:45:30"
+                        class="mt-1 block w-full pl-3 pr-10 py-3 md:py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md bg-white" />
+                </div>
+                <div id="direction-select-wrapper" class="hidden md:col-span-2">
+                    <label for="direction-select" class="block text-sm font-medium text-gray-700">Direction</label>
+                    <select id="direction-select"
+                        class="mt-1 block w-full pl-3 pr-10 py-3 md:py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md bg-white">
+                        <option>DN</option>
+                        <option>UP</option>
+                    </select>
+                </div>
+                <button id="run-analysis"
+                    class="w-full md:col-span-2 bg-indigo-600 text-white py-3 px-4 rounded-lg hover:bg-indigo-700 active:bg-indigo-800 font-semibold shadow-md transition-all">Run
+                    Analysis</button>
+            </div>
+        </div>
+
+        <div id="info-box" class="w-full mt-4 p-3 md:p-4 bg-gray-100 rounded-lg hidden no-print">
+            <h3 class="font-semibold text-gray-700 text-sm md:text-base">Files Detected:</h3>
+            <ul id="header-list" class="mt-2 text-xs md:text-sm text-gray-600 list-disc list-inside break-words"></ul>
+        </div>
+
+        <div id="loading-container" class="mt-8 flex flex-col items-center justify-center hidden no-print">
+            <div id="loading-spinner" class="w-12 h-12 md:w-16 md:h-16 border-4 border-gray-200 rounded-full"></div>
+            <p class="mt-4 text-gray-500 text-base md:text-lg">Processing data...</p>
+        </div>
+
+        <div id="output-sections" class="hidden space-y-6 md:space-y-8 pb-10">
+            <div class="text-center no-print">
+                <button id="print-report"
+                    class="w-full md:w-auto px-8 py-3 bg-green-600 text-white text-lg font-bold rounded-xl shadow-lg hover:bg-green-700 transition-colors">Print
+                    Report</button>
+            </div>
+
+            <div class="chart-section">
+                <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-2 md:mb-4">1. Full Run Speed
+                    Profile</h2>
+                <div class="relative mb-8 h-[300px]"><canvas id="speedChart" class="chart-a4"></canvas></div>
+            </div>
+
+            <div class="">
+                <!--Station Entry Speeds-->
+                <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-1">
+                    Station Entry Speeds
+                </h3>
+
+                <div class="table-container relative shadow-md sm:rounded-lg text-center">
+                    <table class="w-full text-sm text-center text-black-500 speed-analysis-table" id="speedTable">
+                        <thead class="text-xs text-black-700 bg-gray-50 text-center">
+                            <tr>
+                                <th class="py-1 px-1">Station</th>
+                                <th class="py-1 px-1">Time</th>
+                                <th class="py-1 px-1">ML/LL</th>
+                                <th class="py-1 px-1">Reduced Speed</th>
+                                <th class="py-1 px-1">Speed at YY</th>
+                                <th class="py-1 px-1">Speed at Y</th>
+                                <th class="py-1 px-1">Remarks</th>
+                                <th class="py-1 px-1"></th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            <tr class="text-center">
+                                <td class="py-1 px-1 text-center">
+                                    <div class="flex justify-center">
+                                        <input type="text"
+                                            class="w-full border rounded px-2 py-1 text-sm text-center" />
+                                    </div>
+                                </td>
+                                <td class="py-1 px-1 text-center">
+                                    <div class="flex justify-center">
+                                        <input type="text"
+                                            class="w-full border rounded px-2 py-1 text-sm text-center" />
+                                    </div>
+                                </td>
+                                <td class="py-1 px-1 text-center">
+                                    <div class="flex justify-center">
+                                        <input type="text"
+                                            class="w-full border rounded px-2 py-1 text-sm text-center" />
+                                    </div>
+                                </td>
+                                <td class="py-1 px-1 text-center">
+                                    <div class="flex justify-center">
+                                        <input type="text"
+                                            class="w-full border rounded px-2 py-1 text-sm text-center" />
+                                    </div>
+                                </td>
+                                <td class="py-1 px-1 text-center">
+                                    <div class="flex justify-center">
+                                        <input type="text"
+                                            class="w-full border rounded px-2 py-1 text-sm text-center" />
+                                    </div>
+                                </td>
+                                <td class="py-1 px-1 text-center">
+                                    <div class="flex justify-center">
+                                        <input type="text"
+                                            class="w-full border rounded px-2 py-1 text-sm text-center" />
+                                    </div>
+                                </td>
+                                <td class="py-1 px-1 text-center">
+                                    <div class="flex justify-center">
+                                        <input type="text"
+                                            class="w-full border rounded px-2 py-1 text-sm text-center" />
+                                    </div>
+                                </td>
+
+                                <!-- Plus / Minus buttons -->
+                                <td class="py-3 px-3">
+                                    <div class="flex justify-center items-center space-x-2">
+                                        <button type="button"
+                                            class="add-row text-green-600 text-xl font-bold hover:text-green-800">
+                                            +
+                                        </button>
+                                        <button type="button"
+                                            class="remove-row text-red-600 text-xl font-bold hover:text-red-800">
+                                            &minus;
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <!--PST and TSR-->
+                <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-1">
+                    PSR and TSR violations (if any)
+                </h3>
+
+                <div class="table-container relative shadow-md sm:rounded-lg">
+                    <table class="w-full text-sm text-center text-black-500 data-table psr-tsr-table" id="speedTable">
+                        <thead class="text-xs text-black-700 bg-gray-50">
+                            <tr>
+                                <th class="py-1 px-1">section</th>
+                                <th class="py-1 px-1">Kilometre</th>
+                                <th class="py-1 px-1">Speed</th>
+                                <th class="py-1 px-1">Distance</th>
+                                <th class="py-1 px-1">Observed Speed</th>
+                                <th class="py-1 px-1">Observed Distance</th>
+                                <th class="py-1 px-1">Remarks</th>
+                                <th class="py-1 px-1"></th>
+                            </tr>
+                        </thead>
+
+                        <tbody class="text-center">
+                            <tr>
+                                <td class="py-1 px-1 text-center"><input type="text"
+                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
+                                <td class="py-1 px-1 text-center"><input type="text"
+                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
+                                <td class="py-1 px-1 text-center"><input type="text"
+                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
+                                <td class="py-1 px-1 text-center"><input type="text"
+                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
+                                <td class="py-1 px-1 text-center"><input type="text"
+                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
+                                <td class="py-1 px-1 text-center"><input type="text"
+                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
+                                <td class="py-1 px-1 text-center"><input type="text"
+                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
+
+                                <!-- Plus / Minus buttons -->
+                                <td class="py-3 px-3">
+                                    <div class="flex justify-center items-center space-x-2">
+                                        <button type="button"
+                                            class="add-row text-green-600 text-xl font-bold hover:text-green-800">
+                                            +
+                                        </button>
+                                        <button type="button"
+                                            class="remove-row text-red-600 text-xl font-bold hover:text-red-800">
+                                            &minus;
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!--Over Speed beyond MPS or MPS not maintained-->
+                <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-1">
+                    Over Speed beyond MPS or MPS not maintained
+                </h3>
+
+                <div class="table-container relative shadow-md sm:rounded-lg">
+                    <table class="w-full text-sm text-center text-black-500 data-table overspeed-table" id="speedTable">
+                        <thead class="text-xs text-black-700 bg-gray-50">
+                            <tr>
+                                <th class="py-1 px-1">section</th>
+                                <th class="py-1 px-1">Time</th>
+                                <th class="py-1 px-1">Permitted Speed</th>
+                                <th class="py-1 px-1">Actual Speed</th>
+                                <th class="py-1 px-1">Duration Travelled</th>
+                                <th class="py-1 px-1">Distance Travelled</th>
+                                <th class="py-1 px-1">Remarks</th>
+                                <th class="py-1 px-1"></th>
+                            </tr>
+                        </thead>
+
+                        <tbody class="text-center">
+                            <tr>
+                                <td class="py-1 px-1 text-center"><input type="text"
+                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
+                                <td class="py-1 px-1 text-center"><input type="text"
+                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
+                                <td class="py-1 px-1 text-center"><input type="text"
+                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
+                                <td class="py-1 px-1 text-center"><input type="text"
+                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
+                                <td class="py-1 px-1 text-center"><input type="text"
+                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
+                                <td class="py-1 px-1 text-center"><input type="text"
+                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
+                                <td class="py-1 px-1 text-center"><input type="text"
+                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
+
+                                <!-- Plus / Minus buttons -->
+                                <td class="py-3 px-3">
+                                    <div class="flex justify-center items-center space-x-2">
+                                        <button type="button"
+                                            class="add-row text-green-600 text-xl font-bold hover:text-green-800">
+                                            +
+                                        </button>
+                                        <button type="button"
+                                            class="remove-row text-red-600 text-xl font-bold hover:text-red-800">
+                                            &minus;
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                </div>
+
+                <!--Remarks (if any)-->
+                <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-1">
+                    Remarks (if any)
+                </h3>
+
+                <div class="table-container relative shadow-md sm:rounded-lg">
+                    <table class="w-full text-sm text-center text-black-500 data-table" id="speedTable">
+                        <tbody>
+                            <tr>
+                                <td class="py-1 px-1">
+                                    <textarea placeholder="Remarks" rows="3"
+                                        class="w-full border rounded px-2 py-1 text-sm resize-none"></textarea>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="relative border p-4 h-[160px]">
+                        <!-- other content -->
+
+                        <!-- Bottom-right signature block -->
+                        <div class="absolute bottom-4 left-4 text-right space-y-6">
+
+                            <!-- Loco Pilot -->
+                            <div>
+                                <p class="text-sm font-semibold">Signature of Loco Pilot</p>
+                                <div class="mt-2 w-48"></div>
+                            </div>
+                        </div>
+
+                        <div class="absolute bottom-4 right-4 text-left space-y-6">
+                            <!-- M Satyanarayana -->
+                            <div>
+                                <p class="text-sm font-semibold">M Satyanarayana</p>
+                                <p class="text-sm font-semibold">CLI / SPM / UBL</p>
+                                <div class="mt-2 w-48"></div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <div id="violations-container" class="chart-section hidden">
+                <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-2 md:mb-4">2. Speed Violations
+                    Detected</h2>
+                <p class="text-center text-xs md:text-sm text-gray-500 mb-4 no-print">Tap row to view graph.</p>
+                <div class="table-container relative shadow-md sm:rounded-lg">
+                    <table class="w-full text-sm text-left text-gray-500 whitespace-nowrap data-table">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                            <tr>
+                                <th class="py-1 px-1">OHE Masts</th>
+                                <th class="py-1 px-1">Max Speed</th>
+                                <th class="py-1 px-1">Permitted</th>
+                                <th class="py-1 px-1">Duration (s)</th>
+                                <th class="py-1 px-1">Distance (m)</th>
+                                <th class="py-1 px-1">Breach Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="violations-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="magnified-chart-container" class="chart-section hidden">
+                <h2 class="text-lg md:text-xl font-bold text-gray-800 text-center mb-2 md:mb-4">Detailed View</h2>
+                <div class="relative h-64 md:h-96"><canvas id="magnifiedSpeedChart"></canvas></div>
+                <div class="mt-4 text-center no-print"><button id="reset-zoom"
+                        class="w-full md:w-auto px-4 py-3 md:py-2 bg-gray-200 text-gray-700 font-medium rounded-lg shadow-sm hover:bg-gray-300">Close
+                        Detail View</button></div>
+            </div>
+
+            <div class="chart-section">
+                <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-4">
+                    3. First 30 Minutes
+                </h2>
+
+                <div class="relative mb-8 h-[300px]">
+                    <canvas id="first30MinChart" class="chart-a4"></canvas>
+                </div>
+
+                <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-2">
+                    Brake Feel and Brake Power Tests Details
+                </h3>
+
+                <div class="table-container relative shadow-md sm:rounded-lg mt-2">
+                    <table class="w-full text-sm text-left text-black-500 data-table">
+                        <tbody>
+                            <tr>
+                                <td class="py-1 px-1 font-medium text-black-700">
+                                    Brake Feel Test
+                                </td>
+                                <td class="py-1 px-1">
+                                    <input type="text" name="brake_feel" placeholder="Enter result"
+                                        class="w-full border rounded px-2 py-1 text-sm" />
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td class="py-1 px-1 font-medium text-black-700">
+                                    Brake Power Test
+                                </td>
+                                <td class="py-1 px-1">
+                                    <input type="text" name="brake_power" placeholder="Enter result"
+                                        class="w-full border rounded px-2 py-1 text-sm" />
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td class="py-1 px-1 font-medium text-black-700">
+                                    Remarks (if any)
+                                </td>
+                                <td class="py-1 px-1">
+                                    <input type="text" name="remarks" placeholder="Optional remarks"
+                                        class="w-full border rounded px-2 py-1 text-sm" />
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="page-break"></div>
+            <div class="chart-section">
+                <div class="flex justify-between items-center mb-2 md:mb-4 gap-2">
+                    <h2 class="text-lg md:text-2xl font-bold text-black-800 text-center flex-1">4. Braking Pattern Analysis</h2>
+                    <!--<button id="print-brake-analysis" class="print-brake-analysis no-print" title="Print Braking Analysis">Print</button>-->
+                    <button id="toggle-all-brake-legends" class="toggle-all-legends no-print" title="Toggle all legends">Toggle All</button>
+                </div>
+                <div id="stoppage-legend"
+                    class="text-center text-xs md:text-sm text-black-600 mb-4 p-2 flex flex-wrap justify-center gap-2">
+                </div>
+                <div class="relative mb-8 h-[300px] md:h-[500px]"><canvas id="stoppingAnalysisChart" class="chart-a4"></canvas></div>
+                <!-- <h3 class="text-base md:text-xl font-bold text-black-800 text-center mb-4 mt-1">
+                    Speed Analysis before Stop
+                </h3> -->
+
+                <!-- Common Fields Section -->
+                <div class="speed-analysis-common-fields" id="speedAnalysisCommonFields">
+                    <div class="field-group">
+                        <label class="field-label">Date</label>
+                        <input type="text" class="field-input" id="commonDate" placeholder="DD/MM/YYYY">
+                    </div>
+                    <div class="field-group">
+                        <label class="field-label">Train No</label>
+                        <input type="text" class="field-input" id="commonTrainNo" placeholder="Train Number">
+                    </div>
+                    <div class="field-group">
+                        <label class="field-label">Name of LP</label>
+                        <input type="text" class="field-input" id="commonLPName" placeholder="Loco Pilot Name">
+                    </div>
+                    <div class="field-group">
+                        <label class="field-label">Load</label>
+                        <input type="text" class="field-input" id="commonLoad" placeholder="Load">
+                    </div>
+                    <div class="field-group">
+                        <label class="field-label">Name of NLI</label>
+                        <input type="text" class="field-input" id="commonNLI" placeholder="NLI Name">
+                    </div>
+                </div>
+
+                <!-- Speed Analysis Table -->
+                <div class="table-container relative shadow-md sm:rounded-lg text-center">
+                    <table class="w-full text-sm text-center text-black-500 brake-analysis-table" id="speedTable">
+                        <thead>
+                            <tr>
+                                <th>S No</th>
+                                <th>Station</th>
+                                <th>Speed at Double Yellow</th>
+                                <th>Speed at Single Yellow</th>
+                                <th>Cross over speed (if any)</th>
+                                <th>Remarks</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <textarea></textarea>
+                                </td>
+                                <td>
+                                    <textarea></textarea>
+                                </td>
+                                <td>
+                                    <textarea></textarea>
+                                </td>
+                                <td>
+                                    <textarea></textarea>
+                                </td>
+                                <td>
+                                    <textarea></textarea>
+                                </td>
+                                <td>
+                                    <textarea></textarea>
+                                </td>
+                                <!-- Plus / Minus buttons -->
+                                <td>
+                                    <div class="flex justify-center items-center space-x-1">
+                                        <button type="button"
+                                            class="add-row text-green-600 text-lg font-bold hover:text-green-800">
+                                            +
+                                        </button>
+                                        <button type="button"
+                                            class="remove-row text-red-600 text-lg font-bold hover:text-red-800">
+                                            &minus;
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="relative border p-4 h-[160px]">
+                        <div class="absolute bottom-4 right-4 text-left space-y-6">
+                            <!-- M Satyanarayana -->
+                            <div>
+                                <p class="text-sm font-semibold">M Satyanarayana</p>
+                                <p class="text-sm font-semibold">CLI / SPM / UBL</p>
+                                <div class="mt-2 w-48"></div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+                <div class="page-break"></div>
+                <div id="braking-exceptions-container" class="mt-8 hidden">
+                    <h3 class="text-base md:text-xl font-bold text-black-800 text-center mb-4">Braking Exceptions</h3>
+                    <div class="table-container relative shadow-md sm:rounded-lg">
+                        <table class="w-full text-sm text-left text-black-500 whitespace-nowrap data-table">
+                            <thead class="text-xs text-black-700 uppercase bg-gray-50">
+                                <tr>
+                                    <th class="py-1 px-1">Station</th>
+                                    <th class="py-1 px-1">Location</th>
+                                    <th class="py-1 px-1">Actual</th>
+                                    <th class="py-1 px-1">Standard</th>
+                                    <th class="py-1 px-1">Time</th>
+                                </tr>
+                            </thead>
+                            <tbody id="braking-exceptions-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="signal-analysis-container" class="chart-section hidden">
+                <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-2 md:mb-4">5. Signal Analysis</h2>
+                <div class="table-container relative shadow-md sm:rounded-lg">
+                    <table class="w-full text-sm text-left text-gray-500 whitespace-nowrap data-table">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                            <tr>
+                                <th class="py-1 px-1">Station</th>
+                                <th class="py-1 px-1">Type</th>
+                                <th class="py-1 px-1">Time</th>
+                                <th class="py-1 px-1">Speed</th>
+                            </tr>
+                        </thead>
+                        <tbody id="signal-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="sya-analysis-container" class="chart-section hidden">
+                <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-2 md:mb-4">6. SYA Events</h2>
+                <div class="table-container relative shadow-md sm:rounded-lg">
+                    <table class="w-full text-sm text-left text-gray-500 whitespace-nowrap data-table">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                            <tr>
+                                <th class="py-1 px-1">Station</th>
+                                <th class="py-1 px-1">Time</th>
+                                <th class="py-1 px-1">Speed</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sya-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="bulk-match-container" class="chart-section hidden">
+                <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-2 md:mb-4">7. Bulk Matches</h2>
+                <p class="text-center text-xs md:text-sm text-gray-500 mb-4">Matched by Device ID, Station, and Signal
+                    Time.</p>
+                <div class="table-container relative shadow-md sm:rounded-lg">
+                    <table class="w-full text-sm text-left text-gray-500 whitespace-nowrap data-table">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                            <tr>
+                                <th class="py-1 px-1">Device ID</th>
+                                <th class="py-1 px-1">Station</th>
+                                <th class="py-1 px-1">Signal Time</th>
+                                <th class="py-1 px-1">RTIS Speed</th>
+                                <th class="py-1 px-1">Violation Speed</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bulk-match-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="message-box"
+            class="fixed inset-0 bg-gray-900 bg-opacity-70 h-full w-full hidden z-50 no-print flex items-center justify-center p-4">
+            <div class="relative bg-white p-5 border shadow-xl rounded-xl w-full max-w-sm">
+                <div class="mt-1 text-center">
+                    <h3 id="message-title" class="text-xl leading-6 font-bold text-gray-900"></h3>
+                    <div class="mt-4 px-2 py-2">
+                        <p id="message-content" class="text-sm text-gray-600"></p>
+                    </div>
+                    <div class="mt-4"><button id="close-message"
+                            class="px-4 py-3 bg-blue-600 text-white text-base font-medium rounded-lg w-full shadow-md hover:bg-blue-700">OK</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const DEFAULT_MAX_SPEED = 130;
+            const COLOCATED_TOLERANCE_METERS = 50;
+            const DETAIL_TIME_WINDOW_MINUTES = 10;
+            const MAX_SIGNAL_DISTANCE_METERS = 30;
+
+            let originalRtisData, oheData, cautionData, signalData, syaData, bulkData;
+            let allLocations, speedChart, first30MinChart, magnifiedSpeedChart, stoppingAnalysisChart;
+            let speedViolations = [], brakingExceptions = [], allLabels = [], allSpeedData = [], allMaxSpeedData = [], allTimestamps = [], signalEvents = [], syaMatchEvents = [], syaPlotData = [], bulkMatchEvents = [];
+
+            const fileInput = document.getElementById('file-input');
+            const fileDropArea = document.getElementById('file-drop-area');
+            const fileList = document.getElementById('file-list');
+            const fileClickTrigger = document.getElementById('file-click-trigger');
+            const infoBox = document.getElementById('info-box');
+            const headerList = document.getElementById('header-list');
+            const loadingContainer = document.getElementById('loading-container');
+            const outputSections = document.getElementById('output-sections');
+            const magnifiedChartContainer = document.getElementById('magnified-chart-container');
+            const messageBox = document.getElementById('message-box');
+            const messageTitle = document.getElementById('message-title');
+            const messageContent = document.getElementById('message-content');
+            const closeMessage = document.getElementById('close-message');
+            const violationsContainer = document.getElementById('violations-container');
+            const violationsTableBody = document.getElementById('violations-table-body');
+            const resetZoomButton = document.getElementById('reset-zoom');
+            const printReportButton = document.getElementById('print-report');
+            const stoppageLegend = document.getElementById('stoppage-legend');
+            const stationSelectionSection = document.getElementById('station-selection-section');
+            const startStationSelect = document.getElementById('start-station');
+            const endStationSelect = document.getElementById('end-station');
+            const startTimeOverride = document.getElementById('start-time-override');
+            const endTimeOverride = document.getElementById('end-time-override');
+            const runAnalysisBtn = document.getElementById('run-analysis');
+            const brakingExceptionsContainer = document.getElementById('braking-exceptions-container');
+            const brakingExceptionsTableBody = document.getElementById('braking-exceptions-table-body');
+            const tripDetailsSection = document.getElementById('trip-details-section');
+            const tripDetailsContent = document.getElementById('trip-details-content');
+            const signalAnalysisContainer = document.getElementById('signal-analysis-container');
+            const signalTableBody = document.getElementById('signal-table-body');
+
+            const syaAnalysisContainer = document.getElementById('sya-analysis-container');
+            const syaTableBody = document.getElementById('sya-table-body');
+            const bulkMatchContainer = document.getElementById('bulk-match-container');
+            const bulkMatchTableBody = document.getElementById('bulk-match-table-body');
+
+            const directionSelectWrapper = document.getElementById('direction-select-wrapper');
+
+            fileClickTrigger.addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', (event) => handleFileSelect(event.target.files));
+            ['dragover', 'dragenter'].forEach(e => fileDropArea.addEventListener(e, (ev) => { ev.preventDefault(); fileDropArea.classList.add('border-blue-500', 'bg-blue-50'); }));
+            ['dragleave', 'drop'].forEach(e => fileDropArea.addEventListener(e, (ev) => { ev.preventDefault(); fileDropArea.classList.remove('border-blue-500', 'bg-blue-50'); }));
+            fileDropArea.addEventListener('drop', (event) => handleFileSelect(event.dataTransfer.files));
+            closeMessage.addEventListener('click', () => messageBox.classList.add('hidden'));
+            resetZoomButton.addEventListener('click', () => magnifiedChartContainer.classList.add('hidden'));
+            printReportButton.addEventListener('click', () => window.print());
+            runAnalysisBtn.addEventListener('click', runAnalysis);
+
+            // Auto-format time inputs to HH:MM:SS
+            function autoFormatTime(input) {
+                let value = input.value.replace(/\D/g, '');
+                if (value.length > 6) value = value.slice(0, 6);
+                
+                if (value.length >= 3) {
+                    value = value.slice(0, 2) + ':' + value.slice(2);
+                }
+                if (value.length >= 6) {
+                    value = value.slice(0, 5) + ':' + value.slice(5);
+                }
+                input.value = value;
+            }
+
+            startTimeOverride.addEventListener('input', () => autoFormatTime(startTimeOverride));
+            endTimeOverride.addEventListener('input', () => autoFormatTime(endTimeOverride));
+
+            function showMessage(title, content) {
+                messageTitle.textContent = title;
+                messageContent.textContent = content;
+                messageBox.classList.remove('hidden');
+            }
+
+            // *** TIME FORMATTER ***
+            function formatTime(date) {
+                if (!date || isNaN(date.getTime())) {
+                    return null;
+                }
+                const h = String(date.getHours()).padStart(2, '0');
+                const m = String(date.getMinutes()).padStart(2, '0');
+                const s = String(date.getSeconds()).padStart(2, '0');
+                return `${h}:${m}:${s}`;
+            }
+
+            // *** DATE+TIME FORMATTER for unique keys ***
+            function formatDateTime(date) {
+                if (!date || isNaN(date.getTime())) return null;
+                const y = date.getFullYear();
+                const mo = String(date.getMonth() + 1).padStart(2, '0');
+                const d = String(date.getDate()).padStart(2, '0');
+                const h = String(date.getHours()).padStart(2, '0');
+                const m = String(date.getMinutes()).padStart(2, '0');
+                const s = String(date.getSeconds()).padStart(2, '0');
+                return `${y}-${mo}-${d} ${h}:${m}:${s}`;
+            }
+
+            function handleFileSelect(files) {
+                if (files.length === 0 || files.length > 6) {
+                    return showMessage("File Error", "Please upload 1 to 6 files.");
+                }
+
+                fileList.textContent = `Selected: ${Array.from(files).map(f => f.name).join(', ')}`;
+                loadingContainer.classList.remove('hidden');
+                outputSections.classList.add('hidden');
+                infoBox.classList.add('hidden');
+                stationSelectionSection.classList.add('hidden');
+                tripDetailsSection.classList.add('hidden');
+                signalAnalysisContainer.classList.add('hidden');
+                directionSelectWrapper.classList.add('hidden');
+                syaAnalysisContainer.classList.add('hidden');
+                bulkMatchContainer.classList.add('hidden');
+
+                originalRtisData = null; oheData = null; cautionData = null; signalData = null; syaData = null; bulkData = null;
+
+                const filePromises = Array.from(files).map(file => new Promise((resolve, reject) => {
+                    Papa.parse(file, {
+                        // Check row 5 (index 4) for headers, but also Row 1 (index 0)
+                        preview: 5,
+                        complete: res => {
+                            if (!res.data || res.data.length === 0) return resolve({ type: 'unknown', file });
+
+                            let fileType = 'unknown';
+                            let fileName = file.name;
+
+                            try {
+                                const headers_L1 = (res.data[0] || []).map(h => String(h || '').trim().toLowerCase());
+                                if (headers_L1.includes('logging time') || headers_L1.includes('gps time')) {
+                                    fileType = 'rtis';
+                                } else if (headers_L1.includes('ohe mast no')) {
+                                    fileType = 'ohe';
+                                } else if (headers_L1.includes('ohe mast from')) {
+                                    fileType = 'caution';
+                                } else if (headers_L1.includes('designation of stop signal') || headers_L1.includes('type')) {
+                                    fileType = 'signal';
+                                } else if (headers_L1.includes('device id') && headers_L1.includes('signal time') && headers_L1.includes('conclusion')) {
+                                    fileType = 'bulk'; // Identified Bulk Violation Report
+                                }
+
+                                // Check row 5 (index 4) for SYA
+                                if (fileType === 'unknown' && res.data.length >= 5) {
+                                    const headers_L5 = (res.data[4] || []).map(h => String(h || '').trim().toLowerCase());
+                                    if (headers_L5.includes('station') && headers_L5.includes('occured time')) {
+                                        fileType = 'sya';
+                                    }
+                                }
+                            } catch (e) {
+                                console.error("Error parsing headers: ", e);
+                            }
+
+                            if (fileType === 'rtis') {
+                                resolve({ type: 'rtis', file, name: fileName });
+                            } else {
+                                resolve({ type: fileType, file });
+                            }
+                        },
+                        error: reject
+                    });
+                }));
+
+                Promise.all(filePromises).then(fileTypes => {
+                    const rtisFileObj = fileTypes.find(f => f.type === 'rtis');
+                    const oheFile = fileTypes.find(f => f.type === 'ohe')?.file;
+                    const cautionFile = fileTypes.find(f => f.type === 'caution')?.file;
+                    const signalFile = fileTypes.find(f => f.type === 'signal')?.file;
+                    const syaFile = fileTypes.find(f => f.type === 'sya')?.file;
+                    const bulkFile = fileTypes.find(f => f.type === 'bulk')?.file;
+
+                    if (!rtisFileObj) {
+                        loadingContainer.classList.add('hidden');
+                        return showMessage("File Identification Error", "The required RTIS file is missing. Please check file headers.");
+                    }
+
+                    const rtisFile = rtisFileObj.file;
+                    displayTripDetails(rtisFileObj.name);
+
+                    // Create a list of promises for *standard* files
+                    let standardFilePromises = [];
+                    if (rtisFile) standardFilePromises.push(parseCSV(rtisFile).then(res => ({ name: 'rtis', ...res })));
+                    if (oheFile) standardFilePromises.push(parseCSV(oheFile).then(res => ({ name: 'ohe', ...res })));
+                    if (cautionFile) standardFilePromises.push(parseCSV(cautionFile).then(res => ({ name: 'caution', ...res })));
+                    if (signalFile) standardFilePromises.push(parseCSV(signalFile).then(res => ({ name: 'signal', ...res })));
+                    if (bulkFile) standardFilePromises.push(parseCSV(bulkFile).then(res => ({ name: 'bulk', ...res })));
+
+                    // Create a separate promise for the *SYA* file
+                    let allPromises = standardFilePromises;
+                    if (syaFile) {
+                        allPromises.push(parseSyaCSV(syaFile).then(res => ({ name: 'sya', ...res })));
+                    }
+
+                    Promise.all(allPromises)
+                        .then(results => {
+                            headerList.innerHTML = '';
+                            let syaFileLoaded = false;
+
+                            results.forEach((result, index) => {
+                                const fileType = result.name;
+                                const headersStr = result.headers.join(', ');
+
+                                if (fileType === 'rtis') {
+                                    originalRtisData = result.data;
+                                    headerList.innerHTML += `<li><b>RTIS:</b> ${headersStr}</li>`;
+                                } else if (fileType === 'ohe') {
+                                    oheData = result.data;
+                                    headerList.innerHTML += `<li><b>OHE:</b> ${headersStr}</li>`;
+                                } else if (fileType === 'caution') {
+                                    cautionData = result.data;
+                                    headerList.innerHTML += `<li><b>Caution:</b> ${headersStr}</li>`;
+                                } else if (fileType === 'signal') {
+                                    signalData = result.data;
+                                    headerList.innerHTML += `<li><b>Signal:</b> ${headersStr}</li>`;
+                                } else if (fileType === 'sya') {
+                                    syaData = result.data;
+                                    headerList.innerHTML += `<li><b>Single Yellow:</b> ${headersStr}</li>`;
+                                    if (syaData && syaData.length > 0) syaFileLoaded = true;
+                                } else if (fileType === 'bulk') {
+                                    bulkData = result.data;
+                                    headerList.innerHTML += `<li><b>Bulk Violations:</b> ${headersStr}</li>`;
+                                }
+                            });
+
+                            infoBox.classList.remove('hidden');
+                            populateStationSelectors();
+                            loadingContainer.classList.add('hidden');
+                            stationSelectionSection.classList.remove('hidden');
+
+                            if (syaFileLoaded) {
+                                directionSelectWrapper.classList.remove('hidden');
+                                showMessage("SYA File Detected", "A Single Yellow Aspect (SYA) file has been loaded. Please select the train direction in Step 2 before running the analysis.");
+                            } else if (syaFile) {
+                                showMessage("SYA File Warning", "A SYA file was detected, but no data was successfully parsed. Check the file format.");
+                            }
+
+                        }).catch(err => {
+                            loadingContainer.classList.add('hidden');
+                            showMessage("Parsing Error", "An error occurred during parsing: " + err.message);
+                        });
+                });
+            }
+
+            function displayTripDetails(fileName) {
+                const parts = fileName.replace('.csv', '').replace(' - SPM', '').split('_');
+
+                const details = {
+                    'Train No.': parts[0],
+                    'Loco No.': parts[1],
+                    'LP Name': '',
+                    'Designation': '',
+                    'CMS ID': '',
+                    'Section': '',
+                    'Date': '',
+                    'NLI': '',
+                    'Load': '',
+                    'Length': '',
+                    'Departure': '',
+                    'Arrival': ''
+                };
+
+                if (parts[0].includes('.')) {
+                    details['Date'] = '';
+                    details['Train No.'] = parts[0];
+                    details['Loco No.'] = parts[1];
+                    details['LP Name'] = '';
+                    details['Designation'] = '';
+                    details['CMS ID'] = '';
+                    details['Section'] = '';
+                    details['NLI'] = '';
+                    details['Load'] = '';
+                    details['Length'] = '';
+                }
+
+                tripDetailsContent.innerHTML = '';
+
+                Object.entries(details).forEach(([key, value]) => {
+
+                    // 👇 Render input for Departure & Arrival
+                    if (key !== 'Train No.' && key !== 'Loco No.') {
+                        tripDetailsContent.innerHTML += `
+                <div class="flex flex-col gap-0.5">
+                    <label class="font-semibold text-gray-700 text-xs">${key}:</label>
+                    <input
+                        type="text"
+                        id="${key.toLowerCase()}Input"
+                        placeholder="Enter ${key}"
+                        class="w-full rounded-md px-2 py-1.5 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs"
+                    />
+                </div>
+            `;
+                    }
+                    // 👇 Normal display for other fields
+                    else {
+                        tripDetailsContent.innerHTML += `
+                <div class="flex flex-col gap-0.5">
+                    <span class="font-semibold text-gray-700 text-xs">${key}:</span>
+                    <div class="text-gray-600 px-2 py-1.5 bg-white rounded-md border border-gray-200 text-xs">${value || 'N/A'}</div>
+                </div>
+            `;
+                    }
+                });
+
+                tripDetailsSection.classList.remove('hidden');
+            }
+
+
+
+            function populateStationSelectors() {
+                if (!originalRtisData || originalRtisData.length === 0) return showMessage('Error', 'RTIS data is empty or invalid.');
+
+                const possibleStationKeys = ['last/cur stationCode', 'stationCode', 'Station Code', 'Station', 'STATION'];
+                const stationKey = findKey(originalRtisData[0], possibleStationKeys);
+
+                const timeKey = findKey(originalRtisData[0], ['Logging Time']);
+                const gpsTimeKey = findKey(originalRtisData[0], ['Gps Time']);
+                const speedKey = findKey(originalRtisData[0], ['Speed']);
+
+                if (!stationKey) return showMessage('Error', 'Could not find a valid station code column in RTIS file.');
+
+                startStationSelect.innerHTML = '';
+                endStationSelect.innerHTML = '';
+
+                let lastStation = null;
+                let lastTime = null;
+                const LONG_STOP_MINUTES = 30;
+
+                originalRtisData.forEach((row, index) => {
+                    const currentStation = row[stationKey];
+                    const logTime = parseTimestamp(row[gpsTimeKey], row[timeKey]);
+                    if (!currentStation || isNaN(logTime.getTime())) return;
+
+                    const addOption = (i) => {
+                        const time = parseTimestamp(originalRtisData[i][gpsTimeKey], originalRtisData[i][timeKey]);
+                        const optionText = `${originalRtisData[i][stationKey]} (${time.toLocaleString()})`;
+                        startStationSelect.add(new Option(optionText, index));
+                        endStationSelect.add(new Option(optionText, index));
+                    };
+
+                    if (currentStation !== lastStation) {
+                        addOption(index);
+                        lastStation = currentStation;
+                        lastTime = logTime;
+                    } else if (parseFloat(row[speedKey]) < 2) {
+                        if (logTime.getTime() - lastTime.getTime() > LONG_STOP_MINUTES * 60 * 1000) {
+                            addOption(index);
+                            lastTime = logTime;
+                        }
+                    }
+                });
+
+                if (endStationSelect.options.length > 1) {
+                    endStationSelect.selectedIndex = endStationSelect.options.length - 1;
+                }
+            }
+
+            function runAnalysis() {
+                const startIndex = parseInt(startStationSelect.value);
+                const endIndex = parseInt(endStationSelect.value);
+
+                if (isNaN(startIndex) || isNaN(endIndex)) return showMessage('Error', 'Invalid station selection.');
+                if (startIndex >= endIndex) return showMessage('Error', 'The end station must appear after the start station in the log.');
+
+                // Check for custom start time override
+                const startTimeOverrideInput = document.getElementById('start-time-override').value.trim();
+                let actualStartIndex = startIndex;
+
+                if (startTimeOverrideInput) {
+                    // User provided custom time, find the data point matching this time
+                    const timeKey = findKey(originalRtisData[0], ['Logging Time']);
+                    const gpsTimeKey = findKey(originalRtisData[0], ['Gps Time']);
+                    
+                    // Find the row in the dropdown range that matches the custom time
+                    let foundIndex = -1;
+                    for (let i = startIndex; i <= endIndex; i++) {
+                        const time = parseTimestamp(originalRtisData[i][gpsTimeKey], originalRtisData[i][timeKey]);
+                        const timeString = formatTime(time);
+                        if (timeString === startTimeOverrideInput) {
+                            foundIndex = i;
+                            break;
+                        }
+                    }
+
+                    if (foundIndex === -1) {
+                        return showMessage('Error', `Start time ${startTimeOverrideInput} not found in the selected range. Please check the time format (HH:MM:SS) and station range.`);
+                    }
+
+                    actualStartIndex = foundIndex;
+                }
+
+                // Check for custom end time override
+                const endTimeOverrideInput = document.getElementById('end-time-override').value.trim();
+                let actualEndIndex = endIndex;
+
+                if (endTimeOverrideInput) {
+                    // User provided custom time, find the data point matching this time
+                    const timeKey = findKey(originalRtisData[0], ['Logging Time']);
+                    const gpsTimeKey = findKey(originalRtisData[0], ['Gps Time']);
+                    
+                    // Find the row in the dropdown range that matches the custom time
+                    let foundIndex = -1;
+                    for (let i = endIndex; i >= startIndex; i--) {
+                        const time = parseTimestamp(originalRtisData[i][gpsTimeKey], originalRtisData[i][timeKey]);
+                        const timeString = formatTime(time);
+                        if (timeString === endTimeOverrideInput) {
+                            foundIndex = i;
+                            break;
+                        }
+                    }
+
+                    if (foundIndex === -1) {
+                        return showMessage('Error', `End time ${endTimeOverrideInput} not found in the selected range. Please check the time format (HH:MM:SS) and station range.`);
+                    }
+
+                    actualEndIndex = foundIndex;
+                }
+
+                if (actualStartIndex >= actualEndIndex) {
+                    return showMessage('Error', 'Start time must be before end time.');
+                }
+
+                const rtisData = originalRtisData.slice(actualStartIndex, actualEndIndex + 1);
+
+                const selectedDirection = document.getElementById('direction-select').value;
+
+                loadingContainer.classList.remove('hidden');
+                outputSections.classList.add('hidden');
+
+                setTimeout(() => main(rtisData, selectedDirection), 50);
+            }
+
+            function parseSyaCSV(file) {
+                return new Promise((resolve, reject) => {
+                    Papa.parse(file, {
+                        header: false,
+                        skipEmptyLines: false,
+                        dynamicTyping: false,
+                        complete: res => {
+                            try {
+                                const allRows = res.data;
+                                if (allRows.length < 6) return resolve({ headers: [], data: [] });
+                                const headerRow = allRows[4].map(h => String(h || '').trim());
+                                const dataRows = allRows.slice(5);
+                                const jsonData = dataRows.map(row => {
+                                    const obj = {};
+                                    headerRow.forEach((key, index) => { obj[key] = row[index] || null; });
+                                    return obj;
+                                }).filter(obj => obj["SL.No"]);
+                                resolve({ headers: headerRow, data: jsonData });
+                            } catch (e) { reject(e); }
+                        },
+                        error: err => reject(err)
+                    });
+                });
+            }
+
+            function parseCSV(file) {
+                return new Promise((resolve, reject) => {
+                    Papa.parse(file, {
+                        header: true,
+                        skipEmptyLines: true,
+                        dynamicTyping: true,
+                        skipRows: 0,
+                        transformHeader: h => h.trim(),
+                        complete: res => resolve({ headers: res.meta.fields, data: res.data }),
+                        error: err => reject(err)
+                    });
+                });
+            }
+
+            function findKey(obj, possibleKeys) {
+                if (!obj) return null;
+                const keys = Object.keys(obj);
+
+                for (const pKey of possibleKeys) {
+                    const normalizedPKey = String(pKey).toLowerCase().replace(/[^a-z0-9]/g, '');
+                    const foundKey = keys.find(k => String(k).toLowerCase().replace(/[^a-z0-9]/g, '') === normalizedPKey);
+                    if (foundKey) return foundKey;
+                }
+
+                for (const pKey of possibleKeys) {
+                    const normalizedPKey = String(pKey).toLowerCase().replace(/[^a-z0-9]/g, '');
+                    const foundKey = keys.find(k => String(k).toLowerCase().replace(/[^a-z0-9]/g, '').includes(normalizedPKey));
+                    if (foundKey) return foundKey;
+                }
+                return null;
+            }
+
+            function parseTimestamp(gpsTimeStr, loggingTimeStr) {
+                let fullTimestampStr = String(gpsTimeStr);
+
+                if (!fullTimestampStr || fullTimestampStr.trim() === '0' || fullTimestampStr.trim() === 'null' || fullTimestampStr.trim() === 'undefined') {
+                    fullTimestampStr = String(loggingTimeStr);
+                }
+                if (!fullTimestampStr || fullTimestampStr.trim() === '0' || fullTimestampStr.trim() === 'null') {
+                    return new Date('invalid');
+                }
+
+                let [datePart, timePart] = fullTimestampStr.split(' ');
+
+                if (!timePart && datePart.includes(':')) {
+                    timePart = datePart;
+                    let gpsDate = String(gpsTimeStr).split(' ')[0];
+                    if (gpsDate && !gpsDate.includes(':') && gpsDate.trim() !== '0') {
+                        datePart = gpsDate;
+                    } else {
+                        let logDate = String(loggingTimeStr).split(' ')[0];
+                        if (logDate && !logDate.includes(':') && logDate.trim() !== '0') {
+                            datePart = logDate;
+                        } else {
+                            return new Date('invalid');
+                        }
+                    }
+                }
+
+                if (!datePart) return new Date('invalid');
+
+                let year, month, day;
+                if (datePart.includes('-')) {
+                    const parts = datePart.split('-');
+                    if (parts.length === 3) {
+                        if (parts[0].length === 4) { [year, month, day] = parts; }
+                        else { [day, month, year] = parts; }
+                    }
+                } else if (datePart.includes('/')) {
+                    const parts = datePart.split('/');
+                    if (parts.length === 3) { [day, month, year] = parts; } // Assumed DD/MM/YYYY for RTIS unless US format
+                } else if (datePart.includes('.')) {
+                    const parts = datePart.split('.');
+                    if (parts.length === 3) { [day, month, year] = parts; }
+                }
+                if (year && year.length === 2) year = `20${year}`;
+
+                const [hours, minutes, seconds] = (timePart || '00:00:00').split(':');
+                return new Date(year, month - 1, day, hours, minutes, seconds);
+            }
+
+            // *** BULK FILE SPECIFIC PARSER ***
+            function parseBulkTimestamp(timeStr) {
+                if (!timeStr) return new Date('invalid');
+                // Clean string
+                timeStr = timeStr.trim();
+
+                const parts = timeStr.split(',');
+                if (parts.length < 2) return new Date('invalid');
+
+                const datePart = parts[0].trim();
+                const timePart = parts[1].trim();
+                const dateSubParts = datePart.split('/');
+
+                if (dateSubParts.length !== 3) return new Date('invalid');
+
+                const isAMPM = /am|pm/i.test(timePart);
+
+                let d, m, y, h, min, s;
+
+                if (isAMPM) {
+                    // Format: MM/DD/YYYY HH:MM:SS AM/PM (US Style)
+                    [m, d, y] = dateSubParts.map(Number);
+
+                    const timeMatches = timePart.match(/(\d+):(\d+):(\d+)\s*(am|pm)/i);
+                    if (timeMatches) {
+                        h = parseInt(timeMatches[1], 10);
+                        min = parseInt(timeMatches[2], 10);
+                        s = parseInt(timeMatches[3], 10);
+                        const meridian = timeMatches[4].toLowerCase();
+                        if (meridian === 'pm' && h < 12) h += 12;
+                        if (meridian === 'am' && h === 12) h = 0;
+                    } else {
+                        return new Date('invalid');
+                    }
+                } else {
+                    // Format: DD/MM/YYYY HH:MM:SS (International Style)
+                    [d, m, y] = dateSubParts.map(Number);
+                    [h, min, s] = timePart.split(':').map(Number);
+                }
+
+                if (y < 100) y += 2000; // Handle 2-digit years if any
+
+                return new Date(y, m - 1, d, h, min, s);
+            }
+
+            function parseSyaTimestamp(timestampStr) {
+                if (!timestampStr) return new Date('invalid');
+                const parts = timestampStr.split(' ');
+                if (parts.length < 2) return new Date('invalid');
+                const datePart = parts[0];
+                const timePartFull = parts[1];
+                const dateMatch = datePart.match(/(\d{2})\/(\d{2})\/(\d{4})/); // MM/DD/YYYY
+                if (!dateMatch) return new Date('invalid');
+                const timeParts = timePartFull.split(':');
+                if (timeParts.length < 3) return new Date('invalid');
+                const [, month, day, year] = dateMatch;
+                const [hours, minutes, seconds] = timeParts;
+                return new Date(year, month - 1, day, hours, minutes, seconds);
+            }
+
+            function normalizeStationCode(stationStr) {
+                if (!stationStr) return '';
+                return String(stationStr).split('_')[0].split('-')[0].trim();
+            }
+
+            function processBulkData(bulkData) {
+                const bulkLookup = new Map();
+                if (!bulkData || bulkData.length === 0) return bulkLookup;
+
+                const idKey = findKey(bulkData[0], ['Device Id']);
+                const stationKey = findKey(bulkData[0], ['Station']);
+                // *** UPDATED: Using 'Signal Time' instead of 'Event Time' ***
+                const timeKey = findKey(bulkData[0], ['Signal Time']);
+                const speedKey = findKey(bulkData[0], ['Speed']);
+
+                if (!idKey || !stationKey || !timeKey) {
+                    showMessage("Bulk File Error", "Missing columns: Device Id, Station, or Signal Time.");
+                    return bulkLookup;
+                }
+
+                bulkData.forEach(row => {
+                    const id = String(row[idKey] || '').trim();
+                    const station = normalizeStationCode(row[stationKey]);
+                    const timeStr = String(row[timeKey] || '');
+                    const speed = row[speedKey];
+
+                    const dateObj = parseBulkTimestamp(timeStr);
+                    if (isNaN(dateObj.getTime())) return;
+
+                    const dateTimeKey = formatDateTime(dateObj);
+                    if (!dateTimeKey) return;
+
+                    // KEY: DeviceID_Station_DateTime (Where DateTime is Signal Time)
+                    const key = `${id}_${station}_${dateTimeKey}`;
+                    bulkLookup.set(key, { speed, timeStr });
+                });
+                return bulkLookup;
+            }
+
+            function processSyaData(syaData, selectedDirection) {
+                const syaLookup = new Map();
+                if (!syaData || syaData.length === 0) return syaLookup;
+
+                const stationKey = findKey(syaData[0], ['STATION']);
+                const infoKey = findKey(syaData[0], ['INFORMATION']);
+                const timeKey = findKey(syaData[0], ['OCCURED TIME']);
+
+                if (!stationKey || !infoKey || !timeKey) {
+                    showMessage("SYA File Error", "Could not find required columns: STATION, INFORMATION, or OCCURED TIME.");
+                    return syaLookup;
+                }
+
+                const directionPattern = `\\(${selectedDirection}\\s?HOME\\)`;
+                const directionRegex = new RegExp(directionPattern, 'i');
+
+                syaData.forEach(row => {
+                    const info = String(row[infoKey] || '');
+                    if (!directionRegex.test(info)) return;
+
+                    const station = normalizeStationCode(row[stationKey]);
+                    if (!station) return;
+
+                    const timeStr = String(row[timeKey] || '');
+                    const parsedDate = parseSyaTimestamp(timeStr);
+                    if (isNaN(parsedDate.getTime())) return;
+
+                    const timeOnlyKey = formatTime(parsedDate);
+                    if (!timeOnlyKey) return;
+
+                    const key = station + '_' + timeOnlyKey;
+                    syaLookup.set(key, true);
+                });
+                return syaLookup;
+            }
+
+            function main(rtisData, selectedDirection) {
+                try {
+                    speedViolations = []; brakingExceptions = []; allLabels = []; allSpeedData = []; allMaxSpeedData = []; allTimestamps = []; allLocations = []; signalEvents = []; syaMatchEvents = []; syaPlotData = []; bulkMatchEvents = [];
+
+                    magnifiedChartContainer.classList.add('hidden');
+                    signalAnalysisContainer.classList.add('hidden');
+                    syaAnalysisContainer.classList.add('hidden');
+                    bulkMatchContainer.classList.add('hidden');
+
+                    let cautionSections = [];
+                    const fullAnalysis = oheData && oheData.length > 0 && cautionData && cautionData.length > 0;
+                    const signalAnalysis = signalData && signalData.length > 0;
+                    const syaAnalysis = syaData && syaData.length > 0 && selectedDirection;
+                    const bulkAnalysis = bulkData && bulkData.length > 0;
+
+                    let bulkLookup = new Map();
+                    let syaLookup = new Map();
+
+                    if (fullAnalysis) {
+                        try {
+                            cautionSections = processCautionData(cautionData, oheData);
+                        } catch (e) {
+                            showMessage("Caution Processing Error", e.message);
+                        }
+                    }
+
+                    if (syaAnalysis) {
+                        try {
+                            syaLookup = processSyaData(syaData, selectedDirection);
+                        } catch (e) {
+                            showMessage("SYA Processing Error", e.message);
+                        }
+                    }
+
+                    if (bulkAnalysis) {
+                        try {
+                            bulkLookup = processBulkData(bulkData);
+                        } catch (e) {
+                            showMessage("Bulk Data Error", e.message);
+                        }
+                    }
+
+                    const latKey = findKey(rtisData[0], ['Latitude']);
+                    const lonKey = findKey(rtisData[0], ['Longitude']);
+                    const timeKey = findKey(rtisData[0], ['Logging Time']);
+                    const gpsTimeKey = findKey(rtisData[0], ['Gps Time']);
+                    const speedKey = findKey(rtisData[0], ['Speed']);
+                    const stationKey = findKey(rtisData[0], ['last/cur stationCode', 'stationCode', 'Station Code', 'Station', 'STATION']);
+                    const distFromPrevKey = findKey(rtisData[0], ['distFromPrevLatLng']);
+                    // *** FIND RTIS DEVICE ID KEY ***
+                    const deviceIdKey = findKey(rtisData[0], ['Device Id', 'DeviceId', 'Asset Id', 'DeviceID']);
+
+                    if (!stationKey) throw new Error("Could not find a valid station code column in RTIS file for 'main' function.");
+
+                    let currentViolation = null;
+                    rtisData.forEach((row, index) => {
+                        const lat = parseFloat(row[latKey]);
+                        const lon = parseFloat(row[lonKey]);
+                        const actualSpeed = parseFloat(row[speedKey]);
+
+                        const logTime = parseTimestamp(row[gpsTimeKey], row[timeKey]);
+
+                        if (isNaN(lat) || isNaN(lon) || isNaN(actualSpeed) || isNaN(logTime.getTime())) return;
+
+                        let maxSpeed = DEFAULT_MAX_SPEED;
+                        let maxSpeedInfo = { speed: DEFAULT_MAX_SPEED, masts: null };
+
+                        if (fullAnalysis) {
+                            maxSpeedInfo = findMaxSpeedForPoint(lat, lon, cautionSections);
+                            maxSpeed = maxSpeedInfo.speed;
+                        }
+
+                        const isViolating = fullAnalysis && actualSpeed > maxSpeed && maxSpeed < DEFAULT_MAX_SPEED;
+
+                        if (isViolating) {
+                            if (!currentViolation) {
+                                currentViolation = {
+                                    masts: maxSpeedInfo.masts ? `${maxSpeedInfo.masts.start} to ${maxSpeedInfo.masts.end}` : 'N/A',
+                                    startTime: logTime, maxActualSpeed: actualSpeed, permittedSpeed: maxSpeed, points: [{ lat, lon }]
+                                };
+                            } else {
+                                currentViolation.maxActualSpeed = Math.max(currentViolation.maxActualSpeed, actualSpeed);
+                                currentViolation.points.push({ lat, lon });
+                            }
+                        } else if (currentViolation) {
+                            finalizeViolation(currentViolation, logTime);
+                            currentViolation = null;
+                        }
+
+                        const timeLabel = formatTime(logTime);
+                        allLabels.push(timeLabel);
+                        allTimestamps.push(logTime);
+                        allSpeedData.push(actualSpeed);
+                        allMaxSpeedData.push(maxSpeed);
+                        const distFromPrev = distFromPrevKey ? parseFloat(row[distFromPrevKey]) || 0 : 0;
+                        allLocations.push({ lat, lon, speed: actualSpeed, station: row[stationKey], time: logTime, point: turf.point([lon, lat]), distFromPrev: distFromPrev });
+
+                        // SYA Matching
+                        let isSyaEvent = false;
+                        const stationCode = normalizeStationCode(row[stationKey]);
+                        if (syaAnalysis && timeLabel) {
+                            const rtisKey = stationCode + '_' + timeLabel;
+                            if (syaLookup.has(rtisKey)) {
+                                syaMatchEvents.push({ station: stationCode, time: timeLabel, speed: actualSpeed });
+                                syaLookup.delete(rtisKey);
+                                isSyaEvent = true;
+                            }
+                        }
+                        syaPlotData.push(isSyaEvent ? actualSpeed : null);
+
+                        // Bulk Violation Matching
+                        if (bulkAnalysis && deviceIdKey) {
+                            const deviceId = String(row[deviceIdKey] || '').trim();
+                            // We check if RTIS Time matches Signal Time (which is used to create the bulkKey)
+                            const dateTimeKey = formatDateTime(logTime);
+                            if (deviceId && dateTimeKey) {
+                                const bulkKey = `${deviceId}_${stationCode}_${dateTimeKey}`;
+                                if (bulkLookup.has(bulkKey)) {
+                                    const matchData = bulkLookup.get(bulkKey);
+                                    bulkMatchEvents.push({
+                                        id: deviceId,
+                                        station: stationCode,
+                                        time: matchData.timeStr,
+                                        rtisSpeed: actualSpeed,
+                                        bulkSpeed: matchData.speed
+                                    });
+                                    bulkLookup.delete(bulkKey); // Avoid matched duplicates
+                                }
+                            }
+                        }
+                    });
+
+                    if (currentViolation) finalizeViolation(currentViolation, allTimestamps[allTimestamps.length - 1]);
+                    if (allLocations.length === 0) throw new Error("No valid data points found in the selected station range.");
+
+                    if (signalAnalysis) {
+                        signalEvents = processSignalData(signalData, allLocations, selectedDirection);
+                        displaySignalEvents(signalEvents);
+                    }
+
+                    if (syaAnalysis) displaySyaEvents(syaMatchEvents);
+                    if (bulkAnalysis) displayBulkMatches(bulkMatchEvents);
+
+                    plotFullChart(fullAnalysis);
+                    plotFirst30MinutesChart(fullAnalysis);
+                    plotStoppingAnalysisChart();
+                    displayViolations(fullAnalysis);
+
+                    loadingContainer.classList.add('hidden');
+                    outputSections.classList.remove('hidden');
+
+                } catch (error) {
+                    loadingContainer.classList.add('hidden');
+                    showMessage("Processing Error", error.message);
+                    console.error(error);
+                }
+            }
+
+            function finalizeViolation(violation, endTime) {
+                const duration = (endTime.getTime() - violation.startTime.getTime()) / 1000;
+                let distance = 0;
+                if (violation.points.length > 1) {
+                    for (let i = 0; i < violation.points.length - 1; i++) {
+                        distance += turf.distance(turf.point([violation.points[i].lon, violation.points[i].lat]), turf.point([violation.points[i + 1].lon, violation.points[i + 1].lat]), { units: 'meters' });
+                    }
+                }
+                speedViolations.push({ ...violation, duration: Math.max(1, duration), distance, breachTime: formatTime(violation.startTime) });
+            }
+
+            function processCautionData(cautionData, oheData) {
+                const oheMap = new Map();
+                const oheLatKey = findKey(oheData[0], ['Latitude']);
+                const oheLonKey = findKey(oheData[0], ['Longitude']);
+                const oheMastKey = findKey(oheData[0], ['OHE Mast No']);
+                oheData.forEach(row => {
+                    const mast = String(row[oheMastKey] || '').trim().toLowerCase().replace(/\s/g, '');
+                    if (mast && !isNaN(row[oheLatKey]) && !isNaN(row[oheLonKey])) oheMap.set(mast, { lat: row[oheLatKey], lon: row[oheLonKey] });
+                });
+                const startKey = findKey(cautionData[0], ['OHE mast from']);
+                const endKey = findKey(cautionData[0], ['OHE mast to']);
+                const speedKey = findKey(cautionData[0], ['Speed Limit']);
+                if (!startKey || !endKey || !speedKey) throw new Error("Caution file headers are invalid.");
+                return cautionData.map(row => {
+                    const startCoords = oheMap.get(String(row[startKey] || '').trim().toLowerCase().replace(/\s/g, ''));
+                    const endCoords = oheMap.get(String(row[endKey] || '').trim().toLowerCase().replace(/\s/g, ''));
+                    if (startCoords && endCoords) {
+                        return {
+                            masts: { start: row[startKey], end: row[endKey] },
+                            line: turf.lineString([[startCoords.lon, startCoords.lat], [endCoords.lon, endCoords.lat]]),
+                            speed: row[speedKey]
+                        };
+                    }
+                    return null;
+                }).filter(Boolean);
+            }
+
+            function findMaxSpeedForPoint(lat, lon, cautionSections) {
+                const point = turf.point([lon, lat]);
+                let minSpeed = DEFAULT_MAX_SPEED;
+                let affectingMasts = null;
+                for (const section of cautionSections) {
+                    if (turf.pointToLineDistance(point, section.line, { units: 'meters' }) < COLOCATED_TOLERANCE_METERS) {
+                        if (section.speed < minSpeed) {
+                            minSpeed = section.speed;
+                            affectingMasts = section.masts;
+                        }
+                    }
+                }
+                return { speed: minSpeed, masts: affectingMasts };
+            }
+
+            function processSignalData(signalData, rtisLocations, selectedDirection) {
+                const events = [];
+                const loggedSignalKeys = new Set();
+                if (!signalData || signalData.length === 0 || !rtisLocations || rtisLocations.length === 0) return events;
+
+                const latKey = findKey(signalData[0], ['Latitude']);
+                const lonKey = findKey(signalData[0], ['Longitude']);
+                const stationKey = findKey(signalData[0], ['Station', 'Location']);
+                const typeKey = findKey(signalData[0], ['Type']);
+                const stopSigKey = findKey(signalData[0], ['Designation Of Stop Signal']);
+                const permSigKey = findKey(signalData[0], ['Designation Of Permissive Signal']);
+                const applicableKey = findKey(signalData[0], ['Applicable For', 'Direction', 'Applicable']);
+
+                if (!latKey || !lonKey || !stationKey) {
+                    showMessage("Signal File Error", "Signal file is missing required columns.");
+                    return events;
+                }
+
+                // Filter signals by direction if applicable
+                const filteredSignals = signalData.filter(signal => {
+                    if (!applicableKey || !selectedDirection) return true;
+                    const applicableFor = (signal[applicableKey] || '').toUpperCase();
+                    const dir = selectedDirection.toUpperCase();
+                    // Include if matches direction or if applicable field is empty/both
+                    return !applicableFor || applicableFor.includes(dir) || applicableFor.includes('BOTH');
+                });
+
+                // Pre-compute signal points with their data
+                const signalsWithPoints = filteredSignals.map(signal => {
+                    const signalLat = parseFloat(signal[latKey]);
+                    const signalLon = parseFloat(signal[lonKey]);
+                    if (isNaN(signalLat) || isNaN(signalLon)) return null;
+                    return { point: turf.point([signalLon, signalLat]), data: signal };
+                }).filter(Boolean);
+
+                if (signalsWithPoints.length === 0) return events;
+
+                // Track stations where Starter has been encountered
+                const stationsWithStarter = new Set();
+
+                // Forward iteration through RTIS points to maintain signal sequence
+                for (const rtisPoint of rtisLocations) {
+                    // Find the nearest signal to this RTIS point
+                    let nearestSignal = null;
+                    let minDistance = Infinity;
+
+                    for (const signal of signalsWithPoints) {
+                        const distance = turf.distance(rtisPoint.point, signal.point, { units: 'meters' });
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            nearestSignal = signal.data;
+                        }
+                    }
+
+                    // Only record if within threshold and not already logged
+                    if (minDistance < MAX_SIGNAL_DISTANCE_METERS && nearestSignal) {
+                        const signalType = nearestSignal[typeKey] || nearestSignal[stopSigKey] || nearestSignal[permSigKey] || 'N/A';
+                        const stationName = nearestSignal[stationKey] || 'N/A';
+                        const signalKey = stationName + "_" + signalType;
+                        const signalTypeLower = signalType.toLowerCase();
+
+                        // Check if this is a Starter signal - mark station
+                        if (signalTypeLower.includes('starter')) {
+                            stationsWithStarter.add(stationName);
+                        }
+
+                        // Skip Distant/Home/Inner Distant signals if Starter for same station already logged
+                        // (These would be wrong direction signals)
+                        if (stationsWithStarter.has(stationName) && 
+                            (signalTypeLower.includes('distant') || signalTypeLower.includes('home'))) {
+                            continue;
+                        }
+
+                        if (!loggedSignalKeys.has(signalKey)) {
+                            events.push({ station: stationName, type: signalType, time: formatTime(rtisPoint.time), speed: rtisPoint.speed });
+                            loggedSignalKeys.add(signalKey);
+                        }
+                    }
+                }
+                return events;
+            }
+
+            function displaySignalEvents(signalEvents) {
+                signalTableBody.innerHTML = '';
+                if (signalEvents.length === 0) {
+                    signalAnalysisContainer.classList.add('hidden');
+                    return;
+                }
+                signalAnalysisContainer.classList.remove('hidden');
+                signalEvents.forEach(ev => {
+                    const row = signalTableBody.insertRow();
+                    row.className = 'bg-white border-b';
+                    const speedValue = isNaN(ev.speed) ? '0.0' : parseFloat(ev.speed).toFixed(1);
+                    row.innerHTML = `<td class="py-1 px-3">${ev.station}</td><td class="py-1 px-3">${ev.type}</td><td class="py-1 px-3">${ev.time}</td><td class="py-1 px-3">${speedValue}</td>`;
+                });
+            }
+
+            function displaySyaEvents(syaEvents) {
+                syaTableBody.innerHTML = '';
+                if (syaEvents.length === 0) {
+                    syaAnalysisContainer.classList.add('hidden');
+                    return;
+                }
+                syaAnalysisContainer.classList.remove('hidden');
+                syaEvents.forEach(ev => {
+                    const row = syaTableBody.insertRow();
+                    row.className = 'bg-white border-b';
+                    row.innerHTML = `<td class="py-1 px-3">${ev.station}</td><td class="py-1 px-3">${ev.time}</td><td class="py-1 px-3">${ev.speed.toFixed(1)}</td>`;
+                });
+            }
+
+            function displayBulkMatches(matches) {
+                bulkMatchTableBody.innerHTML = '';
+                if (matches.length === 0) {
+                    bulkMatchContainer.classList.add('hidden');
+                    if (bulkData && bulkData.length > 0) showMessage("Bulk Match Info", "No matches found between the Bulk Report and the RTIS data (checked DeviceID + Station + Signal Time).");
+                    return;
+                }
+                bulkMatchContainer.classList.remove('hidden');
+                matches.forEach(m => {
+                    const row = bulkMatchTableBody.insertRow();
+                    row.className = 'bg-white border-b';
+                    row.innerHTML = `
+                    <td class="py-1 px-3 font-medium text-gray-900">${m.id}</td>
+                    <td class="py-1 px-3">${m.station}</td>
+                    <td class="py-1 px-3">${m.time}</td>
+                    <td class="py-1 px-3 font-bold text-blue-600">${m.rtisSpeed.toFixed(1)}</td>
+                    <td class="py-1 px-3 text-red-600 font-bold">${m.bulkSpeed}</td>
+                `;
+                });
+            }
+
+            function plotChart(chartId, data, options, plugins = []) {
+                const chartCanvas = document.getElementById(chartId);
+                if (!chartCanvas) return;
+                const existingChart = Chart.getChart(chartCanvas);
+                if (existingChart) existingChart.destroy();
+                const chartConfig = { type: 'line', data, options };
+                if (plugins && plugins.length > 0) {
+                    chartConfig.plugins = plugins;
+                }
+                return new Chart(chartCanvas.getContext('2d'), chartConfig);
+            }
+
+            function getChartOptions(titleText, xLabel, yLabel) {
+                return {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        title: { display: !!titleText, text: titleText, font: { size: 16 } },
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: { title: { display: true, text: xLabel }, reverse: false, type: 'linear', ticks: { stepSize: 100 } },
+                        y: { title: { display: true, text: yLabel }, beginAtZero: true, suggestedMax: 140 }
+                    }
+                };
+            }
+
+            function plotFullChart(fullAnalysis) {
+                const datasets = [
+                    { label: 'Train Speed (KMPH)', data: allSpeedData, borderColor: '#de276d', tension: 0.1, pointRadius: 0, borderWidth: 2 }
+                ];
+
+                if (fullAnalysis) {
+                    datasets.push(
+                        { label: 'Permissible Speed (KMPH)', data: allMaxSpeedData, borderColor: '#dc2626', stepped: true, pointRadius: 0, borderWidth: 2 }
+                    );
+                }
+
+                const syaAnalysis = syaData && syaData.length > 0;
+                if (syaAnalysis && syaPlotData) {
+                    datasets.push({
+                        label: 'SYA Event',
+                        data: syaPlotData,
+                        type: 'scatter',
+                        pointRadius: 8,
+                        pointStyle: 'triangle',
+                        backgroundColor: '#f59e0b',
+                        borderColor: '#b45309',
+                        borderWidth: 2,
+                        showLine: false
+                    });
+                }
+
+                const data = { labels: allLabels, datasets };
+                const options = getChartOptions(null, 'Time', 'Speed (KMPH)');
+                options.plugins.legend.display = fullAnalysis || (syaAnalysis && syaPlotData && syaPlotData.some(v => v !== null));
+                options.scales.x.type = 'category';
+                speedChart = plotChart('speedChart', data, options);
+            }
+
+            function plotFirst30MinutesChart(fullAnalysis) {
+                const thirtyMinIndex = allTimestamps.findIndex(t => t.getTime() > allTimestamps[0].getTime() + 30 * 60 * 1000);
+                const endIndex = thirtyMinIndex > -1 ? thirtyMinIndex : allLabels.length;
+
+                const datasets = [
+                    { label: 'Train Speed (KMPH)', data: allSpeedData.slice(0, endIndex), borderColor: '#93078b', tension: 0.1, pointRadius: 0, borderWidth: 2 }
+                ];
+
+                if (fullAnalysis) {
+                    datasets.push(
+                        { label: 'Permissible Speed (KMPH)', data: allMaxSpeedData.slice(0, endIndex), borderColor: '#dc2626', stepped: true, pointRadius: 0, borderWidth: 2 }
+                    );
+                }
+
+                const syaAnalysis = syaData && syaData.length > 0;
+                if (syaAnalysis && syaPlotData) {
+                    datasets.push({
+                        label: 'SYA Event',
+                        data: syaPlotData.slice(0, endIndex),
+                        type: 'scatter',
+                        pointRadius: 8,
+                        pointStyle: 'triangle',
+                        backgroundColor: '#f59e0b',
+                        borderColor: '#b45309',
+                        borderWidth: 2,
+                        showLine: false
+                    });
+                }
+
+                const data = {
+                    labels: allLabels.slice(0, endIndex),
+                    datasets
+                };
+                const options = getChartOptions(null, 'Time', 'Speed (KMPH)');
+                options.plugins.legend.display = fullAnalysis || (syaAnalysis && syaPlotData && syaPlotData.slice(0, endIndex).some(v => v !== null));
+                options.scales.x.type = 'category';
+                first30MinChart = plotChart('first30MinChart', data, options);
+            }
+
+            function displayViolations(fullAnalysis) {
+                violationsTableBody.innerHTML = '';
+                if (speedViolations.length === 0 || !fullAnalysis) {
+                    violationsContainer.classList.add('hidden');
+                    return;
+                }
+                violationsContainer.classList.remove('hidden');
+                speedViolations.forEach(v => {
+                    const row = violationsTableBody.insertRow();
+                    row.className = 'bg-white border-b hover:bg-gray-50 violation-row';
+                    row.innerHTML = `<td class="py-1 px-3">${v.masts}</td><td class="py-1 px-3 text-red-600 font-bold">${v.maxActualSpeed.toFixed(1)}</td><td class="py-1 px-3">${v.permittedSpeed}</td><td class="py-1 px-3">${Math.round(v.duration)}</td><td class="py-1 px-3">${Math.round(v.distance)}</td><td class="py-1 px-3">${v.breachTime}</td>`;
+                    row.onclick = () => plotViolationDetailChart(v);
+                });
+            }
+
+            function displayBrakingExceptions() {
+                brakingExceptionsTableBody.innerHTML = '';
+                if (brakingExceptions.length === 0) {
+                    brakingExceptionsContainer.classList.add('hidden');
+                    return;
+                }
+                brakingExceptionsContainer.classList.remove('hidden');
+                brakingExceptions.forEach(ex => {
+                    const row = brakingExceptionsTableBody.insertRow();
+                    row.className = 'bg-white border-b';
+                    row.innerHTML = `<td class="py-1 px-3">${ex.station}</td><td class="py-1 px-3">${ex.location}</td><td class="py-1 px-3 text-red-600 font-bold">${ex.actualSpeed.toFixed(1)}</td><td class="py-1 px-3">${ex.standardSpeed}</td><td class="py-1 px-3">${ex.time}</td>`;
+                });
+            }
+
+            function plotViolationDetailChart(violation) {
+                const start = violation.startTime.getTime() - DETAIL_TIME_WINDOW_MINUTES * 60 * 1000;
+                const end = violation.startTime.getTime() + DETAIL_TIME_WINDOW_MINUTES * 60 * 1000;
+
+                const relevantLabels = [];
+                const relevantSpeedData = [];
+                const relevantMaxSpeedData = [];
+                const relevantSyaData = [];
+
+                for (let i = 0; i < allTimestamps.length; i++) {
+                    if (allTimestamps[i].getTime() >= start && allTimestamps[i].getTime() <= end) {
+                        relevantLabels.push(allLabels[i]);
+                        relevantSpeedData.push(allSpeedData[i]);
+                        relevantMaxSpeedData.push(allMaxSpeedData[i]);
+                        if (syaPlotData) relevantSyaData.push(syaPlotData[i]);
+                    }
+                }
+
+                const datasets = [
+                    { label: 'Train Speed', data: relevantSpeedData, borderColor: '#2563eb', pointRadius: 1, borderWidth: 2 },
+                    { label: 'Permitted Speed', data: relevantMaxSpeedData, borderColor: '#dc2626', stepped: true, pointRadius: 0, borderWidth: 2 }
+                ];
+
+                if (syaData && syaData.length > 0 && relevantSyaData.some(v => v !== null)) {
+                    datasets.push({
+                        label: 'SYA Event',
+                        data: relevantSyaData,
+                        type: 'scatter',
+                        pointRadius: 8,
+                        pointStyle: 'triangle',
+                        backgroundColor: '#f59e0b',
+                        borderColor: '#b45309',
+                        borderWidth: 2,
+                        showLine: false
+                    });
+                }
+
+                const data = {
+                    labels: relevantLabels,
+                    datasets: datasets
+                };
+                const options = getChartOptions(`Detail View: Breach at ${violation.breachTime}`, 'Time', 'Speed (KMPH)');
+                options.plugins.legend.display = true;
+                options.scales.x.type = 'category';
+                magnifiedSpeedChart = plotChart('magnifiedSpeedChart', data, options);
+                magnifiedChartContainer.classList.remove('hidden');
+                magnifiedChartContainer.scrollIntoView({ behavior: 'smooth' });
+            }
+
+            document.addEventListener('click', function (e) {
+                const target = e.target;
+                if (target.classList.contains('add-row')) {
+                    const row = target.closest('tr');
+                    const newRow = row.cloneNode(true);
+
+                    // Clear input/textarea values in new row
+                    newRow.querySelectorAll('input').forEach(input => input.value = '');
+                    newRow.querySelectorAll('textarea').forEach(t => t.value = '');
+
+                    row.parentNode.appendChild(newRow);
+                    return;
+                }
+
+                if (target.classList.contains('remove-row')) {
+                    const row = target.closest('tr');
+                    const tbody = row && row.parentNode;
+                    if (tbody && tbody.rows && tbody.rows.length > 1) {
+                        row.remove();
+                    } else {
+                        // If only one row remains, clear inputs instead of removing
+                        row.querySelectorAll('input').forEach(input => input.value = '');
+                        row.querySelectorAll('textarea').forEach(t => t.value = '');
+                    }
+                }
+            });
+
+                // -- Column Resizing for Speed Analysis table --
+                function enableColumnResizing() {
+                    const tables = document.querySelectorAll('.speed-analysis-table');
+                    tables.forEach(table => {
+                        const ths = table.querySelectorAll('thead th');
+                        ths.forEach((th, index) => {
+                            // Ensure th is positioned so absolute resizer can be placed
+                            th.style.position = th.style.position || 'relative';
+
+                            const resizer = document.createElement('div');
+                            resizer.className = 'col-resizer';
+                            th.appendChild(resizer);
+
+                            let startX = 0;
+                            let startWidth = 0;
+
+                            const onMouseMove = function (e) {
+                                const dx = e.pageX - startX;
+                                const newWidth = Math.max(40, startWidth + dx);
+                                th.style.width = newWidth + 'px';
+                                // apply width to all cells in this column
+                                table.querySelectorAll('tbody tr').forEach(r => {
+                                    const cell = r.children[index];
+                                    if (cell) cell.style.width = newWidth + 'px';
+                                });
+                            };
+
+                            const onMouseUp = function () {
+                                document.removeEventListener('mousemove', onMouseMove);
+                                document.removeEventListener('mouseup', onMouseUp);
+                            };
+
+                            resizer.addEventListener('mousedown', function (e) {
+                                e.preventDefault();
+                                startX = e.pageX;
+                                startWidth = th.offsetWidth;
+                                document.addEventListener('mousemove', onMouseMove);
+                                document.addEventListener('mouseup', onMouseUp);
+                            });
+
+                            // touch support
+                            const onTouchMove = function (e) {
+                                const dx = e.touches[0].pageX - startX;
+                                const newWidth = Math.max(40, startWidth + dx);
+                                th.style.width = newWidth + 'px';
+                                table.querySelectorAll('tbody tr').forEach(r => {
+                                    const cell = r.children[index];
+                                    if (cell) cell.style.width = newWidth + 'px';
+                                });
+                            };
+
+                            const onTouchEnd = function () {
+                                document.removeEventListener('touchmove', onTouchMove);
+                                document.removeEventListener('touchend', onTouchEnd);
+                            };
+
+                            resizer.addEventListener('touchstart', function (e) {
+                                e.preventDefault();
+                                startX = e.touches[0].pageX;
+                                startWidth = th.offsetWidth;
+                                document.addEventListener('touchmove', onTouchMove);
+                                document.addEventListener('touchend', onTouchEnd);
+                            });
+                        });
+                    });
+                }
+
+                // Initialize resizers after DOM ready and later if tables are cloned/added
+                enableColumnResizing();
+
+
+            function findNextSignalAfterStop(stopPoint) {
+                if (!signalData || signalData.length === 0) return null;
+
+                const latKey = findKey(signalData[0], ['Latitude']);
+                const lonKey = findKey(signalData[0], ['Longitude']);
+                const stationKey = findKey(signalData[0], ['Station', 'Location']);
+                const typeKey = findKey(signalData[0], ['Type']);
+                const stopSigKey = findKey(signalData[0], ['Designation Of Stop Signal']);
+                const permSigKey = findKey(signalData[0], ['Designation Of Permissive Signal']);
+
+                if (!latKey || !lonKey) return null;
+
+                let closestSignal = null;
+                let minDistance = Infinity;
+
+                for (const signal of signalData) {
+                    const signalLat = parseFloat(signal[latKey]);
+                    const signalLon = parseFloat(signal[lonKey]);
+                    if (isNaN(signalLat) || isNaN(signalLon)) continue;
+
+                    const signalPoint = turf.point([signalLon, signalLat]);
+                    const distance = turf.distance(stopPoint, signalPoint, { units: 'meters' });
+
+                    if (distance < minDistance && distance > 0) {
+                        minDistance = distance;
+                        closestSignal = {
+                            type: signal[typeKey] || signal[stopSigKey] || signal[permSigKey] || 'Unknown',
+                            station: signal[stationKey] || 'N/A',
+                            distance: minDistance
+                        };
+                    }
+                }
+
+                return closestSignal && minDistance < 5000 ? closestSignal : null;
+            }
+
+            function plotStoppingAnalysisChart() {
+                const STOP_SPEED_THRESHOLD = 2;
+                const MIN_STOP_DURATION_SECONDS = 10;
+                let stops = [];
+                let potentialStopStartIdx = -1;
+
+                allLocations.forEach((loc, i) => {
+                    if (isNaN(loc.time.getTime())) return;
+                    const isStopped = loc.speed < STOP_SPEED_THRESHOLD;
+                    if (isStopped && potentialStopStartIdx === -1) {
+                        potentialStopStartIdx = i;
+                    } else if (!isStopped && potentialStopStartIdx !== -1) {
+                        const duration = (allLocations[i - 1].time.getTime() - allLocations[potentialStopStartIdx].time.getTime()) / 1000;
+                        if (duration >= MIN_STOP_DURATION_SECONDS) {
+                            stops.push({ endIndex: i - 1, station: allLocations[i - 1].station || 'N/A', time: allLocations[i - 1].time });
+                        }
+                        potentialStopStartIdx = -1;
+                    }
+                });
+
+                if (potentialStopStartIdx !== -1) {
+                    const lastIndex = allLocations.length - 1;
+                    if (!isNaN(allLocations[lastIndex].time.getTime())) {
+                        const duration = (allLocations[lastIndex].time.getTime() - allLocations[potentialStopStartIdx].time.getTime()) / 1000;
+                        if (duration >= MIN_STOP_DURATION_SECONDS) {
+                            stops.push({ endIndex: lastIndex, station: allLocations[lastIndex].station || 'N/A', time: allLocations[lastIndex].time });
+                        }
+                    }
+                }
+
+                stoppageLegend.innerHTML = '';
+                brakingExceptions = [];
+                if (stops.length === 0) {
+                    stoppageLegend.innerHTML = 'No significant stops detected.';
+                    if (stoppingAnalysisChart) stoppingAnalysisChart.destroy();
+                    brakingExceptionsContainer.classList.add('hidden');
+                    return;
+                }
+
+                const brakingCheckpoints = [
+                    { name: 'Home Signal (1000m before stopping)', distance: 1000, speed: 60 },
+                    { name: 'Platform Entering (600m before stopping)', distance: 600, speed: 40 },
+                    { name: 'Sigma Board (100m before stopping)', distance: 100, speed: 10 }
+                ];
+
+                const colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf', '#1a9850', '#d6604d', '#4575b4', '#181515'];
+                const datasets = [];
+                
+                stops.map((stop, index) => {
+                    const stopPoint = turf.point([allLocations[stop.endIndex].lon, allLocations[stop.endIndex].lat]);
+                    const stopData = [];
+                    let checkedPoints = new Set();
+
+                    // Calculate cumulative distance for braking curve
+                    let cumulativeDistance = 0;
+                    const distanceMap = []; // Maps index to cumulative distance
+                    
+                    // First pass: calculate cumulative distances backwards from stop
+                    for (let i = stop.endIndex - 1; i >= 0; i--) {
+                        const currentLoc = allLocations[i];
+                        if (isNaN(currentLoc.time.getTime())) {
+                            distanceMap[i] = cumulativeDistance;
+                            continue;
+                        }
+                        distanceMap[i] = cumulativeDistance;
+                        // Add distance from next point to current point
+                        if (i < stop.endIndex - 1 && allLocations[i + 1]) {
+                            const nextDist = allLocations[i + 1].distFromPrev || 0;
+                            cumulativeDistance += nextDist;
+                        }
+                    }
+
+                    // Get the distance to next signal after stopping
+                    const nextSignal = findNextSignalAfterStop(stopPoint);
+                    const distanceToNextSignal = nextSignal ? nextSignal.distance : 0;
+
+                    // Note: Starter signal will be added as a common dataset at x=0, not individually
+
+                    // Second pass: plot data using cumulative distance
+                    for (let i = stop.endIndex - 1; i >= 0; i--) {
+                        const currentLoc = allLocations[i];
+                        if (isNaN(currentLoc.time.getTime())) continue;
+
+                        const currentPoint = turf.point([currentLoc.lon, currentLoc.lat]);
+                        const distanceToStop = turf.distance(currentPoint, stopPoint, { units: 'meters' });
+
+                        if (distanceToStop > 3100) break;
+
+                        brakingCheckpoints.forEach(cp => {
+                            if (!checkedPoints.has(cp.name) && distanceToStop >= cp.distance) {
+                                if (currentLoc.speed > cp.speed) {
+                                    brakingExceptions.push({
+                                        station: stop.station,
+                                        location: cp.name,
+                                        actualSpeed: currentLoc.speed,
+                                        standardSpeed: cp.speed,
+                                        time: formatTime(currentLoc.time)
+                                    });
+                                }
+                                checkedPoints.add(cp.name);
+                            }
+                        });
+
+                        if (distanceToStop <= 3000) {
+                            // Add distance to next signal to the x value
+                            const xValue = distanceMap[i] + distanceToNextSignal;
+                            // Only add if total distance from starter doesn't exceed 3200m
+                            if (xValue <= 3200) {
+                                stopData.unshift({ x: xValue, y: currentLoc.speed });
+                            }
+                        }
+                    }
+
+                    const color = colors[index % colors.length];
+                    //let legendLabel = `${stop.station} at ${formatTime(stop.time)}`;
+                    let legendLabel = ``;
+                    
+                    if (nextSignal) {
+                        //legendLabel += ` → Next: ${nextSignal.station} (${nextSignal.type}) - ${Math.round(nextSignal.distance)}m`;
+                        legendLabel += `${nextSignal.station} (${nextSignal.type}) - ${Math.round(nextSignal.distance)}m`;
+                        //legendLabel += `${nextSignal.station}`;
+                    }
+
+                    const legendEl = document.createElement('span');
+                    legendEl.className = 'legend-item inline-flex items-center m-1 px-2 py-0.5 rounded-full text-xs font-medium';
+                    legendEl.style.backgroundColor = `${color}20`;
+                    legendEl.style.color = color;
+                    legendEl.textContent = legendLabel;
+                    legendEl.dataset.datasetIndex = datasets.length;
+                    legendEl.title = nextSignal ? `Next Signal at ${nextSignal.station}: ${nextSignal.type}, ${Math.round(nextSignal.distance)}m away` : 'No next signal found';
+                    stoppageLegend.appendChild(legendEl);
+
+                    datasets.push({
+                        label: legendLabel, data: stopData, borderColor: color,
+                        borderWidth: 2.5, pointRadius: 0, tension: 0.1, originalBorderWidth: 2.5,
+                        stopIndex: index
+                    });
+
+                    // Add signal markers dataset for this specific stop
+                    if (signalData && signalData.length > 0) {
+                        const signalLatKey = findKey(signalData[0], ['Latitude']);
+                        const signalLonKey = findKey(signalData[0], ['Longitude']);
+                        const stationKey = findKey(signalData[0], ['Station', 'Location']);
+                        const typeKey = findKey(signalData[0], ['Type']);
+                        const stopSigKey = findKey(signalData[0], ['Designation Of Stop Signal']);
+                        const permSigKey = findKey(signalData[0], ['Designation Of Permissive Signal']);
+                        const dirKey = findKey(signalData[0], ['Direction', 'Dir']);
+
+                        if (signalLatKey && signalLonKey) {
+                            const signalMarkersData = [];
+                            const rawSignalData = []; // Collect all signals first for filtering
+
+                            // Calculate cumulative distance from each point back to the stop
+                            const distanceMap = []; // Maps index to cumulative distance
+
+                            // First pass: calculate cumulative distances backwards from stop
+                            let cumulativeDistance = 0;
+                            for (let i = stop.endIndex - 1; i >= 0; i--) {
+                                const currentLoc = allLocations[i];
+                                if (isNaN(currentLoc.time.getTime())) {
+                                    distanceMap[i] = cumulativeDistance;
+                                    continue;
+                                }
+                                distanceMap[i] = cumulativeDistance;
+                                // Add distance from next point to current point
+                                if (i < stop.endIndex - 1 && allLocations[i + 1]) {
+                                    const nextDist = allLocations[i + 1].distFromPrev || 0;
+                                    cumulativeDistance += nextDist;
+                                }
+                            }
+
+                            // Check which signals were passed in the braking period for this stop
+                            // Find the nearest RTIS point to each signal for accurate speed reading
+                            for (const signal of signalData) {
+                                const signalLat = parseFloat(signal[signalLatKey]);
+                                const signalLon = parseFloat(signal[signalLonKey]);
+                                if (isNaN(signalLat) || isNaN(signalLon)) continue;
+
+                                const signalPoint = turf.point([signalLon, signalLat]);
+                                const signalType = signal[typeKey] || signal[stopSigKey] || signal[permSigKey] || 'Unknown';
+                                const signalStation = signal[stationKey] || 'N/A';
+                                const signalDirection = dirKey ? (signal[dirKey] || 'N/A') : 'N/A';
+
+                                // Find the nearest RTIS point to this signal within braking zone
+                                let nearestRtisIndex = -1;
+                                let minDistToSignal = Infinity;
+
+                                for (let i = stop.endIndex - 1; i >= 0; i--) {
+                                    const currentLoc = allLocations[i];
+                                    if (isNaN(currentLoc.time.getTime())) continue;
+
+                                    const currentPoint = turf.point([currentLoc.lon, currentLoc.lat]);
+                                    const distanceToStop = turf.distance(currentPoint, stopPoint, { units: 'meters' });
+
+                                    if (distanceToStop > 3200) break; // Match dataset limit of 3200m
+
+                                    const distToSignal = turf.distance(currentPoint, signalPoint, { units: 'meters' });
+
+                                    // Track the nearest RTIS point to this signal
+                                    if (distToSignal < minDistToSignal) {
+                                        minDistToSignal = distToSignal;
+                                        nearestRtisIndex = i;
+                                    }
+                                }
+
+                                // Only add signal if nearest point is within threshold (same as Signal Analysis)
+                                if (nearestRtisIndex !== -1 && minDistToSignal < MAX_SIGNAL_DISTANCE_METERS) {
+                                    const nearestLoc = allLocations[nearestRtisIndex];
+                                    
+                                    // Check if this signal is already in raw data
+                                    const signalExists = rawSignalData.some(m => 
+                                        m.signalStation === signalStation && m.signalType === signalType && m.direction === signalDirection
+                                    );
+
+                                    if (!signalExists) {
+                                        rawSignalData.push({
+                                            x: distanceMap[nearestRtisIndex] + distanceToNextSignal,
+                                            y: nearestLoc.speed,
+                                            signalType: signalType,
+                                            signalStation: signalStation,
+                                            direction: signalDirection,
+                                            rtisIndex: nearestRtisIndex
+                                        });
+                                    }
+                                }
+                            }
+
+                            // Sort by rtisIndex to determine which signals were encountered first
+                            rawSignalData.sort((a, b) => a.rtisIndex - b.rtisIndex);
+
+                            // Determine train's direction based on approach signals (Distant/Home)
+                            const directionCounts = new Map();
+                            for (const sig of rawSignalData) {
+                                const typeLower = sig.signalType.toLowerCase();
+                                if (typeLower.includes('distant') || (typeLower.includes('home') && !typeLower.includes('starter'))) {
+                                    const dir = sig.direction;
+                                    if (dir && dir !== 'N/A') {
+                                        directionCounts.set(dir, (directionCounts.get(dir) || 0) + 1);
+                                    }
+                                }
+                            }
+
+                            let trainDirection = null;
+                            let maxCount = 0;
+                            for (const [dir, count] of directionCounts) {
+                                if (count > maxCount) {
+                                    maxCount = count;
+                                    trainDirection = dir;
+                                }
+                            }
+
+                            // Track which stations were first encountered with approach vs departure
+                            const stationFirstSignalType = new Map();
+                            for (const sig of rawSignalData) {
+                                // Only process signals matching train direction
+                                if (trainDirection && sig.direction !== 'N/A' && sig.direction !== trainDirection) {
+                                    continue;
+                                }
+                                
+                                const typeLower = sig.signalType.toLowerCase();
+                                const stationKey = sig.signalStation;
+                                
+                                if (!stationFirstSignalType.has(stationKey)) {
+                                    if (typeLower.includes('distant') || (typeLower.includes('home') && !typeLower.includes('starter'))) {
+                                        stationFirstSignalType.set(stationKey, 'approach');
+                                    } else if (typeLower.includes('starter') || typeLower.includes('lss') || typeLower.includes('advanced')) {
+                                        stationFirstSignalType.set(stationKey, 'departure');
+                                    }
+                                }
+                            }
+
+                            // Filter and add signals to markers
+                            for (const sig of rawSignalData) {
+                                const typeLower = sig.signalType.toLowerCase();
+                                
+                                // Skip signals beyond 3200m dataset limit
+                                if (sig.x > 3200) {
+                                    continue;
+                                }
+                                
+                                // Filter by train direction - only show signals in the train's direction
+                                if (trainDirection && sig.direction !== 'N/A' && sig.direction !== trainDirection) {
+                                    continue;
+                                }
+
+                                // Skip starter signals - do not mark or label them (they are at x=0)
+                                if (typeLower.includes('starter') || typeLower.includes('lss') || typeLower.includes('advanced')) {
+                                    continue;
+                                }
+
+                                const stationKey = sig.signalStation;
+                                const firstType = stationFirstSignalType.get(stationKey);
+
+                                // If station was first encountered with Starter (train departing), skip approach signals
+                                if (firstType === 'departure') {
+                                    if ((typeLower.includes('distant') || (typeLower.includes('home') && !typeLower.includes('starter')))) {
+                                        continue;
+                                    }
+                                }
+
+                                let signalTypeShort = '';
+                                if (typeLower.includes('home')) {
+                                    signalTypeShort = 'HS';
+                                } else if (typeLower.includes('distant')) {
+                                    signalTypeShort = 'DS';
+                                }
+                                const signalLabel = `${sig.signalStation}-${signalTypeShort}`;
+
+                                signalMarkersData.push({
+                                    x: sig.x,
+                                    y: sig.y,
+                                    label: signalLabel,
+                                    signalType: sig.signalType,
+                                    signalStation: sig.signalStation
+                                });
+                            }
+
+                            if (signalMarkersData.length > 0) {
+                                datasets.push({
+                                    label: `Signals for ${stop.station}`,
+                                    type: 'scatter',
+                                    data: signalMarkersData,
+                                    pointRadius: 0,
+                                    pointStyle: 'star',
+                                    backgroundColor: '#FFD700',
+                                    borderColor: '#FF6B6B',
+                                    borderWidth: 2,
+                                    tension: 0.1,
+                                    stopIndex: index,
+                                    isSignalDataset: true
+                                });
+                            }
+                        }
+                    }
+                }).filter((item, index) => {
+                    // Only keep main stop datasets in this iteration
+                    return true;
+                });
+
+                // Add a single common Starter Signal marker at x=0 for all graphs
+                datasets.push({
+                    label: 'Starter Signal',
+                    type: 'scatter',
+                    data: [{ x: 0, y: 0, isCommonStarterSignal: true }],
+                    pointRadius: 0,
+                    pointStyle: 'circle',
+                    backgroundColor: '#22c55e',
+                    borderColor: '#16a34a',
+                    borderWidth: 2,
+                    tension: 0.1,
+                    isCommonStarterSignal: true
+                });
+
+                const options = getChartOptions(null, 'Distance (Meters)', 'Speed (KMPH)');
+                options.scales.x.reverse = true;
+                options.scales.x.max = 3200; // Limit x-axis to 3200 meters max
+                
+                // Pre-load signal images (embedded as data URLs)
+                const signalImages = {};
+                const distantImg = new Image();
+                const homeImg = new Image();
+                const starterImg = new Image();
+                
+                // Embedded SVG data URLs
+                distantImg.src = 'data:image/svg+xml;base64,' + btoa(`<?xml version="1.0"?><svg width="85" height="407" xmlns="http://www.w3.org/2000/svg"><g class="layer"><title>Layer 1</title><g data-cell-id="1" id="svg_3"><g data-cell-id="8Pz4FwjKvFX1z93biRRz-6" id="svg_4"><g id="svg_5"><path d="m42,405l0,-160" fill="none" id="svg_6" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-width="6"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--5" id="svg_7" transform="matrix(1 0 0 1 0 0)"><g id="svg_8"><ellipse cx="42.5" cy="45.5" fill="#ffff00" id="svg_9" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--6" id="svg_10" transform="matrix(1 0 0 1 0 0)"><g id="svg_11"><ellipse cx="42.5" cy="205.5" fill="#ffff00" id="svg_12" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="gzgGxNtp2YSv-8hrBadr-1" id="svg_13" transform="matrix(1 0 0 1 0 0)"><g id="svg_14" transform="translate(0.5 0.5)"><ellipse cx="42" cy="125" fill="#000000" id="svg_15" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g></g></g></svg>`);
+                homeImg.src = 'data:image/svg+xml;base64,' + btoa(`<?xml version="1.0"?><svg width="297" height="437" xmlns="http://www.w3.org/2000/svg"><g class="layer"><title>Layer 1</title><g id="svg_1" transform="matrix(1 0 0 1 0 0)"><g data-cell-id="1" id="svg_3"><g data-cell-id="8Pz4FwjKvFX1z93biRRz-4" id="svg_4"><g id="svg_5" transform="translate(0.5,0.5)"><ellipse cx="143" cy="153" fill="#000000" id="svg_6" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="8Pz4FwjKvFX1z93biRRz-5" id="svg_7"><g id="svg_8" transform="translate(0.5,0.5)"><ellipse cx="143" cy="233" fill="#ffff00" id="svg_9" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="8Pz4FwjKvFX1z93biRRz-6" id="svg_10"><g id="svg_11"><path d="m143,433l0,-160" fill="none" id="svg_12" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-width="6"/></g></g><g data-cell-id="8Pz4FwjKvFX1z93biRRz-8" id="svg_13"><g id="svg_14"><path d="m293,11.28l-130,101.72" fill="none" id="svg_15" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-width="6"/></g></g><g data-cell-id="8Pz4FwjKvFX1z93biRRz-9" id="svg_16"><g id="svg_17"><path d="m3,3l120,110l-10,-8.28" fill="none" id="svg_18" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-width="6"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--1" id="svg_19"><g id="svg_20" transform="translate(0.5,0.5)"><ellipse cx="143" cy="153" fill="#ffff00" id="svg_21" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--2" id="svg_22"><g id="svg_23" transform="translate(0.5,0.5)"><ellipse cx="143" cy="73" fill="#000000" id="svg_24" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--3" id="svg_25"><g id="svg_26" transform="translate(0.5,0.5)"><ellipse cx="143" cy="233" fill="#000000" id="svg_27" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g></g></g></g></svg>`);
+                starterImg.src = 'data:image/svg+xml;base64,' + btoa(`<?xml version="1.0"?><svg width="85" height="407" xmlns="http://www.w3.org/2000/svg"><g><g data-cell-id="0"><g data-cell-id="1"><g data-cell-id="8Pz4FwjKvFX1z93biRRz-4"><g transform="translate(0.5,0.5)"><ellipse cx="42" cy="122" rx="40" ry="40" fill="#ff0000" stroke="#000000" stroke-width="5"/></g></g><g data-cell-id="8Pz4FwjKvFX1z93biRRz-6"><g><path d="M 42 402 L 42 242" fill="none" stroke="#000000" stroke-width="6" stroke-miterlimit="10"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--5"><g transform="translate(0.5,0.5)"><ellipse cx="42" cy="42" rx="40" ry="40" fill="#000000" stroke="#000000" stroke-width="5"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--6"><g transform="translate(0.5,0.5)"><ellipse cx="42" cy="202" rx="40" ry="40" fill="#000000" stroke="#000000" stroke-width="5"/></g></g></g></g></g></svg>`);
+                
+                distantImg.onload = () => { signalImages['distant'] = distantImg; };
+                homeImg.onload = () => { signalImages['home'] = homeImg; };
+                starterImg.onload = () => { signalImages['starter'] = starterImg; };
+                
+                // Add plugin to display signal labels and icons on chart
+                const signalLabelPlugin = {
+                    afterDatasetsDraw(chart) {
+                        const ctx = chart.ctx;
+                        
+                        // Draw common starter signal marker at x=0
+                        chart.data.datasets.forEach((dataset, datasetIndex) => {
+                            if (dataset.isCommonStarterSignal && !dataset.hidden && dataset.data) {
+                                dataset.data.forEach((datapoint, index) => {
+                                    if (datapoint.isCommonStarterSignal) {
+                                        const point = chart.getDatasetMeta(datasetIndex).data[index];
+                                        if (point) {
+                                            if (signalImages['starter']) {
+                                                // Draw Starter signal image at x=0
+                                                ctx.drawImage(signalImages['starter'], point.x - 5, point.y - 38, 10, 36);
+                                            }
+                                        }
+                                    }
+                                });
+                            }
+                        });
+                        
+                        chart.data.datasets.forEach((dataset, datasetIndex) => {
+                            if (dataset.isSignalDataset && !dataset.hidden) {
+                                dataset.data.forEach((datapoint, index) => {
+                                    if (datapoint.label) {
+                                        // Skip rendering labels for starter signals
+                                        if (datapoint.signalType && datapoint.signalType.toLowerCase().includes('starter')) {
+                                            return;
+                                        }
+                                        const point = chart.getDatasetMeta(datasetIndex).data[index];
+                                        if (point) {
+                                            const x = point.x;
+                                            const y = point.y;
+                                            const signalType = (datapoint.signalType || '').toLowerCase();
+                                            
+                                            // Draw custom icon or image based on signal type
+                                            if (signalType.includes('distant') && signalImages['distant']) {
+                                                // Draw Distant signal image
+                                                ctx.drawImage(signalImages['distant'], x - 6, y - 32, 10, 30);
+                                            } else if (signalType.includes('home') && signalImages['home']) {
+                                                // Draw Home signal image
+                                                ctx.drawImage(signalImages['home'], x - 6, y - 34, 30, 36);
+                                            } else if (signalType.includes('distant')) {
+                                                // Fallback: Draw double yellow circle for Distant signal
+                                                ctx.fillStyle = '#FFD700';
+                                                ctx.beginPath();
+                                                ctx.arc(x - 12, y, 6, 0, 2 * Math.PI);
+                                                ctx.fill();
+                                                ctx.fillStyle = '#FFD700';
+                                                ctx.beginPath();
+                                                ctx.arc(x + 12, y, 6, 0, 2 * Math.PI);
+                                                ctx.fill();
+                                                // Draw connecting line
+                                                ctx.strokeStyle = '#FFD700';
+                                                ctx.lineWidth = 2;
+                                                ctx.beginPath();
+                                                ctx.moveTo(x - 6, y);
+                                                ctx.lineTo(x + 6, y);
+                                                ctx.stroke();
+                                            } else if (signalType.includes('home')) {
+                                                // Fallback: Draw single red circle for Home signal
+                                                ctx.fillStyle = '#FF0000';
+                                                ctx.beginPath();
+                                                ctx.arc(x, y, 8, 0, 2 * Math.PI);
+                                                ctx.fill();
+                                                // Draw white inner circle
+                                                ctx.fillStyle = '#FFFFFF';
+                                                ctx.beginPath();
+                                                ctx.arc(x, y, 5, 0, 2 * Math.PI);
+                                                ctx.fill();
+                                            } else {
+                                                // Default star marker for other signals
+                                                ctx.fillStyle = '#FFD700';
+                                                ctx.font = 'bold 14px Arial';
+                                                ctx.textAlign = 'center';
+                                                ctx.textBaseline = 'middle';
+                                                ctx.fillText('★', x, y);
+                                            }
+                                            
+                                            // Draw label text below icon
+                                            ctx.fillStyle = '#000000';
+                                            ctx.font = 'bold 10px Arial';
+                                            ctx.textAlign = 'center';
+                                            ctx.fillText(datapoint.label, x, y - 38);
+                                        }
+                                    }
+                                });
+                            }
+                        });
+                    }
+                };
+                
+                stoppingAnalysisChart = plotChart('stoppingAnalysisChart', { datasets }, options, [signalLabelPlugin]);
+
+                stoppageLegend.querySelectorAll('.legend-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const clickedIndex = parseInt(item.dataset.datasetIndex);
+                        const clickedDataset = stoppingAnalysisChart.data.datasets[clickedIndex];
+
+                        // Toggle visibility of clicked dataset
+                        clickedDataset.hidden = !clickedDataset.hidden;
+
+                        // Visual cue on legend
+                        item.classList.toggle('striked', clickedDataset.hidden);
+
+                        // Also toggle signal markers for this specific stop
+                        const stopIndex = clickedDataset.stopIndex;
+                        stoppingAnalysisChart.data.datasets.forEach((dataset, idx) => {
+                            if (dataset.isSignalDataset && dataset.stopIndex === stopIndex) {
+                                dataset.hidden = clickedDataset.hidden;
+                            }
+                        });
+
+                        // Update toggle button state
+                        const allLegends = stoppageLegend.querySelectorAll('.legend-item');
+                        const allHidden = Array.from(allLegends).every(l => l.classList.contains('striked'));
+                        const toggleBtn = document.getElementById('toggle-all-brake-legends');
+                        if (toggleBtn) {
+                            toggleBtn.classList.toggle('active', allHidden && allLegends.length > 0);
+                        }
+
+                        stoppingAnalysisChart.update();
+                    });
+                });
+
+                // Handle toggle all button
+                const toggleAllBtn = document.getElementById('toggle-all-brake-legends');
+                if (toggleAllBtn) {
+                    toggleAllBtn.addEventListener('click', () => {
+                        const allLegends = stoppageLegend.querySelectorAll('.legend-item');
+                        const isCurrentlyAllHidden = Array.from(allLegends).every(l => l.classList.contains('striked'));
+
+                        allLegends.forEach(legendItem => {
+                            const clickedIndex = parseInt(legendItem.dataset.datasetIndex);
+                            const dataset = stoppingAnalysisChart.data.datasets[clickedIndex];
+
+                            // Set hidden state based on current state
+                            if (isCurrentlyAllHidden) {
+                                // If all are hidden, show all
+                                dataset.hidden = false;
+                                legendItem.classList.remove('striked');
+                            } else {
+                                // If not all are hidden, hide all
+                                dataset.hidden = true;
+                                legendItem.classList.add('striked');
+                            }
+
+                            // Also toggle signal markers for this specific stop
+                            const stopIndex = dataset.stopIndex;
+                            stoppingAnalysisChart.data.datasets.forEach((ds, idx) => {
+                                if (ds.isSignalDataset && ds.stopIndex === stopIndex) {
+                                    ds.hidden = dataset.hidden;
+                                }
+                            });
+                        });
+
+                        // Update toggle button state
+                        const allNowHidden = Array.from(allLegends).every(l => l.classList.contains('striked'));
+                        toggleAllBtn.classList.toggle('active', allNowHidden && allLegends.length > 0);
+
+                        stoppingAnalysisChart.update();
+                    });
+                }
+
+                // Handle print button
+                const printBrakeBtn = document.getElementById('print-brake-analysis');
+                if (printBrakeBtn) {
+                    printBrakeBtn.addEventListener('click', () => {
+                        // Get the Braking Analysis section
+                        const brakingSection = printBrakeBtn.closest('.chart-section');
+                        if (!brakingSection) return;
+
+                        // Create a new window for printing
+                        const printWindow = window.open('', '_blank');
+                        printWindow.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8">');
+                        printWindow.document.write('<title>Braking Analysis Report</title>');
+                        printWindow.document.write('<style>');
+                        printWindow.document.write('body { font-family: Arial, sans-serif; margin: 20px; }');
+                        printWindow.document.write('h2 { text-align: center; color: #1f2937; margin-bottom: 20px; }');
+                        printWindow.document.write('h3 { text-align: center; color: #1f2937; margin-top: 20px; margin-bottom: 10px; }');
+                        printWindow.document.write('canvas { max-width: 100%; height: auto; margin-bottom: 30px; }');
+                        printWindow.document.write('table { width: 100%; border-collapse: collapse; margin-top: 20px; }');
+                        printWindow.document.write('th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }');
+                        printWindow.document.write('th { background-color: #f3f4f6; font-weight: bold; }');
+                        printWindow.document.write('tr:nth-child(even) { background-color: #f9fafb; }');
+                        printWindow.document.write('</style></head><body>');
+                        
+                        // Add title
+                        printWindow.document.write('<h2>4. Braking Analysis Report</h2>');
+                        
+                        // Add legend
+                        const legendContainer = brakingSection.querySelector('#stoppageLegend');
+                        if (legendContainer) {
+                            printWindow.document.write('<div style="margin-bottom: 20px; text-align: center;">');
+                            const legendItems = Array.from(legendContainer.querySelectorAll('.legend-item')).map(item => {
+                                const text = item.textContent;
+                                const color = item.style.color;
+                                const isStriked = item.classList.contains('striked');
+                                const decoration = isStriked ? 'line-through' : 'none';
+                                return `<span style="display: inline-block; margin: 5px 10px; color: ${color}; text-decoration: ${decoration}; font-weight: 500;">${text}</span>`;
+                            });
+                            printWindow.document.write(legendItems.join(''));
+                            printWindow.document.write('</div>');
+                        }
+
+                        // Add chart as image
+                        printWindow.document.write('<div style="text-align: center;">');
+                        const chartImage = stoppingAnalysisChart.toDataURL();
+                        printWindow.document.write(`<img src="${chartImage}" style="max-width: 100%; height: auto;">`);
+                        printWindow.document.write('</div>');
+                        
+                        // Add speed analysis table
+                        printWindow.document.write('<h3>Speed Analysis before Stop</h3>');
+                        
+                        // Add common fields
+                        const commonDate = document.getElementById('commonDate')?.value || '';
+                        const commonTrainNo = document.getElementById('commonTrainNo')?.value || '';
+                        const commonLPName = document.getElementById('commonLPName')?.value || '';
+                        const commonLoad = document.getElementById('commonLoad')?.value || '';
+                        const commonNLI = document.getElementById('commonNLI')?.value || '';
+                        
+                        printWindow.document.write('<div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 15px; padding: 10px; background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 5px;">');
+                        printWindow.document.write(`<div><strong>Date:</strong> ${commonDate}</div>`);
+                        printWindow.document.write(`<div><strong>Train No:</strong> ${commonTrainNo}</div>`);
+                        printWindow.document.write(`<div><strong>LP Name:</strong> ${commonLPName}</div>`);
+                        printWindow.document.write(`<div><strong>Load:</strong> ${commonLoad}</div>`);
+                        printWindow.document.write(`<div><strong>NLI:</strong> ${commonNLI}</div>`);
+                        printWindow.document.write('</div>');
+                        
+                        const speedTable = brakingSection.querySelector('#speedTable');
+                        if (speedTable) {
+                            printWindow.document.write(speedTable.outerHTML);
+                        }
+                        
+                        // Add braking exceptions table if present
+                        const printBrakingExceptionsContainer = document.getElementById('braking-exceptions-container');
+                        if (printBrakingExceptionsContainer && !printBrakingExceptionsContainer.classList.contains('hidden')) {
+                            printWindow.document.write('<h3>Braking Exceptions</h3>');
+                            const exceptionTable = printBrakingExceptionsContainer.querySelector('table');
+                            if (exceptionTable) {
+                                printWindow.document.write(exceptionTable.outerHTML);
+                            }
+                        }
+                        
+                        printWindow.document.write('</body></html>');
+                        printWindow.document.close();
+                        
+                        // Trigger print dialog
+                        setTimeout(() => {
+                            printWindow.print();
+                            printWindow.close();
+                        }, 250);
+                    });
+                }
+
+                displayBrakingExceptions();
+            }
+        });
+    </script>
+
+</body>
+
+</html>
