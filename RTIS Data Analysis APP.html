@@ -7,6 +7,7 @@
     <title>Speed Profile Analysis - RTIS Data </title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
     <script src='https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js'></script>
     <style>
@@ -43,7 +44,7 @@
 
         /* Ensure chart containers respect parent boundaries */
         div.relative {
-            overflow: hidden;
+            overflow: visible;
         }
 
         /* Constrain canvas size to parent container */
@@ -224,6 +225,7 @@
             background-color: #f9fafb;
             border: 1px solid #e5e7eb;
             border-radius: 0.5rem;
+            margin-top: 16px;
             margin-bottom: 1rem;
         }
 
@@ -306,13 +308,16 @@
         
         .speed-analysis-table th:nth-child(3),
         .speed-analysis-table td:nth-child(3),
-        .speed-analysis-table th:nth-child(4),
-        .speed-analysis-table td:nth-child(4),
         .speed-analysis-table th:nth-child(5),
         .speed-analysis-table td:nth-child(5),
         .speed-analysis-table th:nth-child(6),
         .speed-analysis-table td:nth-child(6) {
-            width: 9%;
+            width: 8%;
+        }
+        
+        .speed-analysis-table th:nth-child(4),
+        .speed-analysis-table td:nth-child(4) {
+            width: 12%;
         }
         .speed-analysis-table th:nth-child(2),
         .speed-analysis-table td:nth-child(2) {
@@ -1120,8 +1125,6 @@
                 <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-6">
                     Brake Feel Test Analysis
                 </h3>
-                <p class="text-center text-xs md:text-sm text-gray-600 mb-4">Speed vs Distance</p>
-
                 <div class="relative mb-8 h-[300px]">
                     <canvas id="brakeFeel600Chart" class="chart-a4"></canvas>
                 </div>
@@ -1129,7 +1132,6 @@
                 <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-6">
                     Brake Power Test Analysis
                 </h3>
-                <p class="text-center text-xs md:text-sm text-gray-600 mb-4">Speed vs Distance</p>
 
                 <div class="relative mb-8 h-[300px]">
                     <canvas id="brakePowerChart" class="chart-a4"></canvas>
@@ -1243,6 +1245,19 @@
                     class="text-center text-xs md:text-sm text-black-600 mb-4 p-2 flex flex-wrap justify-center gap-2">
                 </div>
                 <div class="relative mb-8 h-[300px] md:h-[500px]"><canvas id="stoppingAnalysisChart" class="chart-a4"></canvas></div>
+                <div class="text-right mb-4">
+                    <button id="toggle-home-signals-chart" class="toggle-home-signals-btn no-print" title="Show/Hide Home Signals Graph" style="display: none;">Show Home Signals</button>
+                </div>
+                <div id="home-signals-chart-container" class="relative mb-32 h-[350px] md:h-[600px] hidden pb-12">
+                    <div class="flex justify-between items-center mb-2 md:mb-4 gap-2">
+                        <h3 class="text-base md:text-lg font-bold text-black-800 flex-1">Home Signals Analysis</h3>
+                        <button id="toggle-all-home-legends" class="toggle-all-legends no-print" title="Toggle all legends">Toggle All</button>
+                    </div>
+                    <div id="home-stoppage-legend"
+                        class="text-center text-xs md:text-sm text-black-600 mb-4 p-2 flex flex-wrap justify-center gap-2">
+                    </div>
+                    <canvas id="homeSignalsAnalysisChart" class="chart-a4"></canvas>
+                </div>
                 <!-- <h3 class="text-base md:text-xl font-bold text-black-800 text-center mb-4 mt-1">
                     Speed Analysis before Stop
                 </h3> -->
@@ -1432,7 +1447,7 @@
             const MAX_SIGNAL_DISTANCE_METERS = 30;
 
             let originalRtisData, oheData, cautionData, signalData, syaData, bulkData;
-            let allLocations, speedChart, first30MinChart, magnifiedSpeedChart, stoppingAnalysisChart, brakeFeel600Chart, brakePowerChart;
+            let allLocations, speedChart, first30MinChart, magnifiedSpeedChart, stoppingAnalysisChart, homeSignalsAnalysisChart, brakeFeel600Chart, brakePowerChart;
             let speedViolations = [], brakingExceptions = [], allLabels = [], allSpeedData = [], allMaxSpeedData = [], allTimestamps = [], signalEvents = [], syaMatchEvents = [], syaPlotData = [], bulkMatchEvents = [];
 
             const fileInput = document.getElementById('file-input');
@@ -2249,6 +2264,7 @@
                     plotBrakeFeel600Chart();
                     plotBrakePowerChart();
                     plotStoppingAnalysisChart();
+                    plotHomeSignalsChart();
                     displayViolations(fullAnalysis);
 
                     loadingContainer.classList.add('hidden');
@@ -2653,7 +2669,7 @@
                         pointRadius: 1,
                         pointBackgroundColor: '#2563eb',
                         borderWidth: 1,
-                        fill: true
+                        fill: false
                     }
                 ];
 
@@ -2677,7 +2693,22 @@
                 };
 
                 const options = getChartOptions(null, 'Distance (Metres)', 'Speed (KMPH)');
-                options.plugins.legend.display = true;
+                options.plugins.legend.display = false;
+                options.plugins.datalabels = {
+                    display: true,
+                    color: '#1f2937',
+                    font: { size: 10, weight: 'bold' },
+                    anchor: 'top',
+                    offset: 6,
+                    formatter: function(value, context) {
+                        if (value === null || value === undefined) return '';
+                        // Show label only at key points: start (index 0), end, and every 20% of data
+                        const dataLength = context.dataset.data.length;
+                        const index = context.dataIndex;
+                        const shouldShow = index === 0 || index === dataLength - 1 || index % Math.ceil(dataLength / 5) === 0;
+                        return shouldShow ? value.toFixed(1) : '';
+                    }
+                };
                 options.scales.x.type = 'category';
                 options.scales.y.beginAtZero = true;
                 options.scales.y.max = 30;
@@ -2795,7 +2826,7 @@
                         pointRadius: 1,
                         pointBackgroundColor: '#059669',
                         borderWidth: 1,
-                        fill: true
+                        fill: false
                     }
                 ];
 
@@ -2830,7 +2861,22 @@
                 };
 
                 const options = getChartOptions(null, 'Distance (Metres)', 'Speed (KMPH)');
-                options.plugins.legend.display = true;
+                options.plugins.legend.display = false;
+                options.plugins.datalabels = {
+                    display: true,
+                    color: '#1f2937',
+                    font: { size: 10, weight: 'bold' },
+                    anchor: 'top',
+                    offset: 6,
+                    formatter: function(value, context) {
+                        if (value === null || value === undefined) return '';
+                        // Show label only at key points: start (index 0), end, and every 20% of data
+                        const dataLength = context.dataset.data.length;
+                        const index = context.dataIndex;
+                        const shouldShow = index === 0 || index === dataLength - 1 || index % Math.ceil(dataLength / 5) === 0;
+                        return shouldShow ? value.toFixed(1) : '';
+                    }
+                };
                 options.scales.x.type = 'category';
                 options.scales.y.beginAtZero = true;
                 options.scales.y.max = 80;
@@ -3355,7 +3401,7 @@
                                 } else if (typeLower.includes('distant')) {
                                     signalTypeShort = 'DS';
                                 }
-                                const signalLabel = `${sig.signalStation}-${signalTypeShort}`;
+                                const signalLabel = `${sig.signalStation}-${signalTypeShort}(${sig.y.toFixed(1).replace(/\.0$/, '')})`;
 
                                 signalMarkersData.push({
                                     x: sig.x,
@@ -3643,6 +3689,81 @@
                     });
                 }
 
+                // Handle toggle Home Signals chart button
+                const toggleHomeSignalsBtn = document.getElementById('toggle-home-signals-chart');
+                if (toggleHomeSignalsBtn) {
+                    toggleHomeSignalsBtn.addEventListener('click', () => {
+                        const chartContainer = document.getElementById('home-signals-chart-container');
+                        const parentSection = toggleHomeSignalsBtn.closest('.chart-section');
+                        if (chartContainer) {
+                            chartContainer.classList.toggle('hidden');
+                            if (!chartContainer.classList.contains('hidden')) {
+                                toggleHomeSignalsBtn.textContent = 'Hide Home Signals';
+                                // Adjust parent section height to accommodate both charts
+                                if (parentSection) {
+                                    parentSection.style.minHeight = 'auto';
+                                }
+                                // Resize chart when it becomes visible
+                                if (homeSignalsAnalysisChart) {
+                                    setTimeout(() => {
+                                        homeSignalsAnalysisChart.resize();
+                                    }, 100);
+                                }
+                            } else {
+                                toggleHomeSignalsBtn.textContent = 'Show Home Signals';
+                                // Reset parent section height
+                                if (parentSection) {
+                                    parentSection.style.minHeight = '';
+                                }
+                            }
+                        }
+                    });
+                }
+
+                // Handle toggle all button for home signals legends
+                const toggleAllHomeBtn = document.getElementById('toggle-all-home-legends');
+                const homeStoppageLegend = document.getElementById('home-stoppage-legend');
+                if (toggleAllHomeBtn && homeStoppageLegend) {
+                    toggleAllHomeBtn.addEventListener('click', () => {
+                        if (!homeSignalsAnalysisChart) return;
+                        
+                        const allLegends = homeStoppageLegend.querySelectorAll('.legend-item');
+                        const isCurrentlyAllHidden = Array.from(allLegends).every(l => l.classList.contains('striked'));
+
+                        allLegends.forEach(legendItem => {
+                            const clickedIndex = parseInt(legendItem.dataset.datasetIndex);
+                            const dataset = homeSignalsAnalysisChart.data.datasets[clickedIndex];
+
+                            if (dataset) {
+                                // Set hidden state based on current state
+                                if (isCurrentlyAllHidden) {
+                                    // If all are hidden, show all
+                                    dataset.hidden = false;
+                                    legendItem.classList.remove('striked');
+                                } else {
+                                    // If not all are hidden, hide all
+                                    dataset.hidden = true;
+                                    legendItem.classList.add('striked');
+                                }
+
+                                // Also toggle signal markers for this specific stop
+                                const stopIndex = dataset.stopIndex;
+                                homeSignalsAnalysisChart.data.datasets.forEach((ds, idx) => {
+                                    if (ds.isSignalDataset && ds.stopIndex === stopIndex) {
+                                        ds.hidden = dataset.hidden;
+                                    }
+                                });
+                            }
+                        });
+
+                        // Update toggle button state
+                        const allNowHidden = Array.from(allLegends).every(l => l.classList.contains('striked'));
+                        toggleAllHomeBtn.classList.toggle('active', allNowHidden && allLegends.length > 0);
+
+                        homeSignalsAnalysisChart.update();
+                    });
+                }
+
                 // Handle print button
                 const printBrakeBtn = document.getElementById('print-brake-analysis');
                 if (printBrakeBtn) {
@@ -3736,6 +3857,642 @@
 
                 displayBrakingExceptions();
             }
+
+            function plotHomeSignalsChart() {
+                const STOP_SPEED_THRESHOLD = 2;
+                const MIN_STOP_DURATION_SECONDS = 10;
+                let stops = [];
+                let potentialStopStartIdx = -1;
+
+                allLocations.forEach((loc, i) => {
+                    if (isNaN(loc.time.getTime())) return;
+                    const isStopped = loc.speed < STOP_SPEED_THRESHOLD;
+                    if (isStopped && potentialStopStartIdx === -1) {
+                        potentialStopStartIdx = i;
+                    } else if (!isStopped && potentialStopStartIdx !== -1) {
+                        const duration = (allLocations[i - 1].time.getTime() - allLocations[potentialStopStartIdx].time.getTime()) / 1000;
+                        if (duration >= MIN_STOP_DURATION_SECONDS) {
+                            stops.push({ endIndex: i - 1, station: allLocations[i - 1].station || 'N/A', time: allLocations[i - 1].time });
+                        }
+                        potentialStopStartIdx = -1;
+                    }
+                });
+
+                if (potentialStopStartIdx !== -1) {
+                    const lastIndex = allLocations.length - 1;
+                    if (!isNaN(allLocations[lastIndex].time.getTime())) {
+                        const duration = (allLocations[lastIndex].time.getTime() - allLocations[potentialStopStartIdx].time.getTime()) / 1000;
+                        if (duration >= MIN_STOP_DURATION_SECONDS) {
+                            stops.push({ endIndex: lastIndex, station: allLocations[lastIndex].station || 'N/A', time: allLocations[lastIndex].time });
+                        }
+                    }
+                }
+
+                const colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf', '#1a9850', '#d6604d', '#4575b4', '#181515'];
+                const datasets = [];
+                let homeStopCount = 0;
+
+                stops.map((stop, index) => {
+                    const stopPoint = turf.point([allLocations[stop.endIndex].lon, allLocations[stop.endIndex].lat]);
+                    
+                    // Check if the LAST signal crossed before stopping is a Distant signal
+                    let lastSignalIsDistant = false;
+                    if (signalData && signalData.length > 0) {
+                        const signalLatKey = findKey(signalData[0], ['Latitude']);
+                        const signalLonKey = findKey(signalData[0], ['Longitude']);
+                        const typeKey = findKey(signalData[0], ['Type']);
+                        const stopSigKey = findKey(signalData[0], ['Designation Of Stop Signal']);
+                        const permSigKey = findKey(signalData[0], ['Designation Of Permissive Signal']);
+
+                        if (signalLatKey && signalLonKey) {
+                            // Collect all signals crossed in the braking zone
+                            let signalsCrossed = [];
+                            
+                            for (const signal of signalData) {
+                                const signalLat = parseFloat(signal[signalLatKey]);
+                                const signalLon = parseFloat(signal[signalLonKey]);
+                                if (isNaN(signalLat) || isNaN(signalLon)) continue;
+
+                                const signalPoint = turf.point([signalLon, signalLat]);
+                                const signalType = signal[typeKey] || signal[stopSigKey] || signal[permSigKey] || 'Unknown';
+                                const signalTypeLower = signalType.toLowerCase();
+
+                                // Find nearest RTIS point to this signal within braking zone
+                                let nearestRtisIndex = -1;
+                                let minDistToSignal = Infinity;
+
+                                for (let i = stop.endIndex - 1; i >= 0; i--) {
+                                    const currentLoc = allLocations[i];
+                                    if (isNaN(currentLoc.time.getTime())) continue;
+
+                                    const currentPoint = turf.point([currentLoc.lon, currentLoc.lat]);
+                                    const distanceToStop = turf.distance(currentPoint, stopPoint, { units: 'meters' });
+                                    const distToSignal = turf.distance(currentPoint, signalPoint, { units: 'meters' });
+
+                                    if (distanceToStop > 3200) break;
+
+                                    if (distToSignal < minDistToSignal) {
+                                        minDistToSignal = distToSignal;
+                                        nearestRtisIndex = i;
+                                    }
+                                }
+
+                                // If signal is within threshold and in braking zone, record it
+                                if (nearestRtisIndex !== -1 && minDistToSignal < MAX_SIGNAL_DISTANCE_METERS) {
+                                    const nearestLoc = allLocations[nearestRtisIndex];
+                                    signalsCrossed.push({
+                                        rtisIndex: nearestRtisIndex,
+                                        signalType: signalTypeLower,
+                                        signalName: signalType,
+                                        distance: minDistToSignal
+                                    });
+                                }
+                            }
+
+                            // Sort by RTIS index to find order of signals crossed
+                            signalsCrossed.sort((a, b) => a.rtisIndex - b.rtisIndex);
+
+                            // Check if the LAST signal crossed is a Distant signal
+                            if (signalsCrossed.length > 0) {
+                                const lastSignal = signalsCrossed[signalsCrossed.length - 1];
+                                if (lastSignal.signalType.includes('distant') && !lastSignal.signalType.includes('home') && !lastSignal.signalType.includes('starter')) {
+                                    lastSignalIsDistant = true;
+                                }
+                            }
+                        }
+                    }
+
+                    // Only include stops where the last signal crossed was Distant
+                    if (!lastSignalIsDistant) return;
+
+                    homeStopCount++;
+                    const stopData = [];
+                    let checkedPoints = new Set();
+
+                    // Calculate cumulative distance for braking curve
+                    let cumulativeDistance = 0;
+                    const distanceMap = [];
+                    
+                    // First pass: calculate cumulative distances backwards from stop
+                    for (let i = stop.endIndex - 1; i >= 0; i--) {
+                        const currentLoc = allLocations[i];
+                        if (isNaN(currentLoc.time.getTime())) {
+                            distanceMap[i] = cumulativeDistance;
+                            continue;
+                        }
+                        distanceMap[i] = cumulativeDistance;
+                        if (i < stop.endIndex - 1 && allLocations[i + 1]) {
+                            const nextDist = allLocations[i + 1].distFromPrev || 0;
+                            cumulativeDistance += nextDist;
+                        }
+                    }
+
+                    // Get the distance to next signal (Home signal) after stopping
+                    const nextSignal = findNextSignalAfterStop(stopPoint);
+                    const distanceToNextSignal = nextSignal && nextSignal.type && nextSignal.type.toLowerCase().includes('home') ? nextSignal.distance : 0;
+
+                    // Second pass: plot data using cumulative distance
+                    for (let i = stop.endIndex - 1; i >= 0; i--) {
+                        const currentLoc = allLocations[i];
+                        if (isNaN(currentLoc.time.getTime())) continue;
+
+                        const currentPoint = turf.point([currentLoc.lon, currentLoc.lat]);
+                        const distanceToStop = turf.distance(currentPoint, stopPoint, { units: 'meters' });
+
+                        if (distanceToStop > 3100) break;
+
+                        if (distanceToStop <= 3000) {
+                            const xValue = distanceMap[i] + distanceToNextSignal;
+                            if (xValue <= 3200) {
+                                stopData.unshift({ x: xValue, y: currentLoc.speed });
+                            }
+                        }
+                    }
+
+                    const color = colors[(homeStopCount - 1) % colors.length];
+                    let signalText = '';
+                    
+                    if (nextSignal) {
+                        signalText = `${nextSignal.station} (${nextSignal.type}) ${Math.round(nextSignal.distance)}m`;
+                    }
+
+                    datasets.push({
+                        label: '', data: stopData, borderColor: color,
+                        borderWidth: 2.5, pointRadius: 0, tension: 0.1, originalBorderWidth: 2.5,
+                        stopIndex: index,
+                        isHomeSignalStop: true,
+                        stopInfo: { station: stop.station, time: stop.time, signalText: signalText }
+                    });
+
+                    // Add signal markers dataset for this specific stop
+                    if (signalData && signalData.length > 0) {
+                        const signalLatKey = findKey(signalData[0], ['Latitude']);
+                        const signalLonKey = findKey(signalData[0], ['Longitude']);
+                        const stationKey = findKey(signalData[0], ['Station', 'Location']);
+                        const typeKey = findKey(signalData[0], ['Type']);
+                        const stopSigKey = findKey(signalData[0], ['Designation Of Stop Signal']);
+                        const permSigKey = findKey(signalData[0], ['Designation Of Permissive Signal']);
+                        const dirKey = findKey(signalData[0], ['Direction', 'Dir']);
+
+                        if (signalLatKey && signalLonKey) {
+                            const signalMarkersData = [];
+                            const rawSignalData = [];
+
+                            const distanceMap = [];
+                            let cumulativeDistance = 0;
+                            for (let i = stop.endIndex - 1; i >= 0; i--) {
+                                const currentLoc = allLocations[i];
+                                if (isNaN(currentLoc.time.getTime())) {
+                                    distanceMap[i] = cumulativeDistance;
+                                    continue;
+                                }
+                                distanceMap[i] = cumulativeDistance;
+                                if (i < stop.endIndex - 1 && allLocations[i + 1]) {
+                                    const nextDist = allLocations[i + 1].distFromPrev || 0;
+                                    cumulativeDistance += nextDist;
+                                }
+                            }
+
+                            for (const signal of signalData) {
+                                const signalLat = parseFloat(signal[signalLatKey]);
+                                const signalLon = parseFloat(signal[signalLonKey]);
+                                if (isNaN(signalLat) || isNaN(signalLon)) continue;
+
+                                const signalPoint = turf.point([signalLon, signalLat]);
+                                const signalType = signal[typeKey] || signal[stopSigKey] || signal[permSigKey] || 'Unknown';
+                                const signalStation = signal[stationKey] || 'N/A';
+                                const signalDirection = dirKey ? (signal[dirKey] || 'N/A') : 'N/A';
+
+                                // Find the nearest RTIS point to this signal within braking zone
+                                let nearestRtisIndex = -1;
+                                let minDistToSignal = Infinity;
+
+                                for (let i = stop.endIndex - 1; i >= 0; i--) {
+                                    const currentLoc = allLocations[i];
+                                    if (isNaN(currentLoc.time.getTime())) continue;
+
+                                    const currentPoint = turf.point([currentLoc.lon, currentLoc.lat]);
+                                    const distanceToStop = turf.distance(currentPoint, stopPoint, { units: 'meters' });
+
+                                    if (distanceToStop > 3200) break;
+
+                                    const distToSignal = turf.distance(currentPoint, signalPoint, { units: 'meters' });
+
+                                    if (distToSignal < minDistToSignal) {
+                                        minDistToSignal = distToSignal;
+                                        nearestRtisIndex = i;
+                                    }
+                                }
+
+                                if (nearestRtisIndex !== -1 && minDistToSignal < MAX_SIGNAL_DISTANCE_METERS) {
+                                    const nearestLoc = allLocations[nearestRtisIndex];
+                                    
+                                    const signalExists = rawSignalData.some(m => 
+                                        m.signalStation === signalStation && m.signalType === signalType && m.direction === signalDirection
+                                    );
+
+                                    if (!signalExists) {
+                                        rawSignalData.push({
+                                            x: distanceMap[nearestRtisIndex] + distanceToNextSignal,
+                                            y: nearestLoc.speed,
+                                            signalType: signalType,
+                                            signalStation: signalStation,
+                                            direction: signalDirection,
+                                            rtisIndex: nearestRtisIndex
+                                        });
+                                    }
+                                }
+                            }
+
+                            rawSignalData.sort((a, b) => a.rtisIndex - b.rtisIndex);
+
+                            const directionCounts = new Map();
+                            for (const sig of rawSignalData) {
+                                const typeLower = sig.signalType.toLowerCase();
+                                if (typeLower.includes('distant') || (typeLower.includes('home') && !typeLower.includes('starter'))) {
+                                    const dir = sig.direction;
+                                    if (dir && dir !== 'N/A') {
+                                        directionCounts.set(dir, (directionCounts.get(dir) || 0) + 1);
+                                    }
+                                }
+                            }
+
+                            let trainDirection = null;
+                            let maxCount = 0;
+                            for (const [dir, count] of directionCounts) {
+                                if (count > maxCount) {
+                                    maxCount = count;
+                                    trainDirection = dir;
+                                }
+                            }
+
+                            const stationFirstSignalType = new Map();
+                            for (const sig of rawSignalData) {
+                                if (trainDirection && sig.direction !== 'N/A' && sig.direction !== trainDirection) {
+                                    continue;
+                                }
+                                
+                                const typeLower = sig.signalType.toLowerCase();
+                                const stationKey = sig.signalStation;
+                                
+                                if (!stationFirstSignalType.has(stationKey)) {
+                                    if (typeLower.includes('distant') || (typeLower.includes('home') && !typeLower.includes('starter'))) {
+                                        stationFirstSignalType.set(stationKey, 'approach');
+                                    } else if (typeLower.includes('starter') || typeLower.includes('lss') || typeLower.includes('advanced')) {
+                                        stationFirstSignalType.set(stationKey, 'departure');
+                                    }
+                                }
+                            }
+
+                            for (const sig of rawSignalData) {
+                                const typeLower = sig.signalType.toLowerCase();
+                                
+                                if (sig.x > 3200) {
+                                    continue;
+                                }
+                                
+                                if (trainDirection && sig.direction !== 'N/A' && sig.direction !== trainDirection) {
+                                    continue;
+                                }
+
+                                // For Home signals chart, show Home signals and Distant signals (exclude Starter)
+                                if ((!typeLower.includes('home') && !typeLower.includes('distant')) || typeLower.includes('starter')) {
+                                    continue;
+                                }
+
+                                const stationKey = sig.signalStation;
+                                const firstType = stationFirstSignalType.get(stationKey);
+
+                                if (firstType === 'departure') {
+                                    if ((typeLower.includes('distant') || (typeLower.includes('home') && !typeLower.includes('starter')))) {
+                                        continue;
+                                    }
+                                }
+
+                                let signalTypeShort = '';
+                                if (typeLower.includes('home')) {
+                                    signalTypeShort = 'HS';
+                                } else if (typeLower.includes('distant')) {
+                                    signalTypeShort = 'DS';
+                                }
+                                const signalLabel = `${sig.signalStation}-${signalTypeShort}(${sig.y.toFixed(1).replace(/\.0$/, '')})`;
+
+                                signalMarkersData.push({
+                                    x: sig.x,
+                                    y: sig.y,
+                                    label: signalLabel,
+                                    signalType: sig.signalType,
+                                    signalStation: sig.signalStation
+                                });
+                            }
+
+                            if (signalMarkersData.length > 0) {
+                                datasets.push({
+                                    label: `Home Signals for ${stop.station}`,
+                                    type: 'scatter',
+                                    data: signalMarkersData,
+                                    pointRadius: 0,
+                                    pointStyle: 'star',
+                                    backgroundColor: '#FFD700',
+                                    borderColor: '#FF6B6B',
+                                    borderWidth: 2,
+                                    tension: 0.1,
+                                    stopIndex: index,
+                                    isSignalDataset: true
+                                });
+                            }
+                        }
+                    }
+                });
+
+                // If no Home signal stops found, hide the chart
+                if (homeStopCount === 0) {
+                    const chartContainer = document.getElementById('home-signals-chart-container');
+                    const toggleBtn = document.getElementById('toggle-home-signals-chart');
+                    if (chartContainer) chartContainer.classList.add('hidden');
+                    if (toggleBtn) toggleBtn.style.display = 'none';
+                    if (homeSignalsAnalysisChart) homeSignalsAnalysisChart.destroy();
+                    return;
+                }
+
+                // Show the button and container if there are Home signal stops
+                const toggleBtn = document.getElementById('toggle-home-signals-chart');
+                if (toggleBtn) toggleBtn.style.display = 'inline-block';
+
+                // Add a single common Home Signal marker at x=0 for all graphs
+                datasets.push({
+                    label: 'Home Signal',
+                    type: 'scatter',
+                    data: [{ x: 0, y: 0, isCommonHomeSignal: true }],
+                    pointRadius: 0,
+                    pointStyle: 'circle',
+                    backgroundColor: '#FF0000',
+                    borderColor: '#B22222',
+                    borderWidth: 2,
+                    tension: 0.1,
+                    isCommonHomeSignal: true
+                });
+
+                const options = getChartOptions(null, 'Distance (Meters)', 'Speed (KMPH)');
+                options.scales.x.reverse = true;
+                options.scales.x.max = 3200;
+                options.scales.x.min = 0;
+                options.scales.x.type = 'linear';
+                options.scales.x.ticks = { stepSize: 300, display: true };
+                options.scales.x.display = true;
+                options.scales.y.beginAtZero = true;
+                options.scales.y.min = 0;
+
+                // Pre-load signal images
+                const signalImages = {};
+                const distantImg = new Image();
+                const homeImg = new Image();
+                distantImg.src = 'data:image/svg+xml;base64,' + btoa(`<?xml version="1.0"?><svg width="85" height="407" xmlns="http://www.w3.org/2000/svg"><g class="layer"><title>Layer 1</title><g data-cell-id="1" id="svg_3"><g data-cell-id="8Pz4FwjKvFX1z93biRRz-6" id="svg_4"><g id="svg_5"><path d="m42,405l0,-160" fill="none" id="svg_6" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-width="6"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--5" id="svg_7" transform="matrix(1 0 0 1 0 0)"><g id="svg_8"><ellipse cx="42.5" cy="45.5" fill="#ffff00" id="svg_9" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--6" id="svg_10" transform="matrix(1 0 0 1 0 0)"><g id="svg_11"><ellipse cx="42.5" cy="205.5" fill="#ffff00" id="svg_12" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="gzgGxNtp2YSv-8hrBadr-1" id="svg_13" transform="matrix(1 0 0 1 0 0)"><g id="svg_14" transform="translate(0.5 0.5)"><ellipse cx="42" cy="125" fill="#000000" id="svg_15" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g></g></g></svg>`);
+                homeImg.src = 'data:image/svg+xml;base64,' + btoa(`<?xml version="1.0"?><svg width="297" height="437" xmlns="http://www.w3.org/2000/svg"><g class="layer"><title>Layer 1</title><g id="svg_1" transform="matrix(1 0 0 1 0 0)"><g data-cell-id="1" id="svg_3"><g data-cell-id="8Pz4FwjKvFX1z93biRRz-4" id="svg_4"><g id="svg_5" transform="translate(0.5,0.5)"><ellipse cx="143" cy="153" fill="#000000" id="svg_6" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="8Pz4FwjKvFX1z93biRRz-5" id="svg_7"><g id="svg_8" transform="translate(0.5,0.5)"><ellipse cx="143" cy="233" fill="#ffff00" id="svg_9" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="8Pz4FwjKvFX1z93biRRz-6" id="svg_10"><g id="svg_11"><path d="m143,433l0,-160" fill="none" id="svg_12" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-width="6"/></g></g><g data-cell-id="8Pz4FwjKvFX1z93biRRz-8" id="svg_13"><g id="svg_14"><path d="m293,11.28l-130,101.72" fill="none" id="svg_15" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-width="6"/></g></g><g data-cell-id="8Pz4FwjKvFX1z93biRRz-9" id="svg_16"><g id="svg_17"><path d="m3,3l120,110l-10,-8.28" fill="none" id="svg_18" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-width="6"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--1" id="svg_19"><g id="svg_20" transform="translate(0.5,0.5)"><ellipse cx="143" cy="153" fill="#ffff00" id="svg_21" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--2" id="svg_22"><g id="svg_23" transform="translate(0.5,0.5)"><ellipse cx="143" cy="73" fill="#000000" id="svg_24" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--3" id="svg_25"><g id="svg_26" transform="translate(0.5,0.5)"><ellipse cx="143" cy="233" fill="#000000" id="svg_27" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g></g></g></g></svg>`);
+                distantImg.onload = () => { signalImages['distant'] = distantImg; };
+                homeImg.onload = () => { signalImages['home'] = homeImg; };
+
+                const signalLabelPlugin = {
+                    afterDatasetsDraw(chart) {
+                        const ctx = chart.ctx;
+                        
+                        // Draw common home signal marker at x=0
+                        chart.data.datasets.forEach((dataset, datasetIndex) => {
+                            if (dataset.isCommonHomeSignal && !dataset.hidden && dataset.data) {
+                                dataset.data.forEach((datapoint, index) => {
+                                    if (datapoint.isCommonHomeSignal) {
+                                        const point = chart.getDatasetMeta(datasetIndex).data[index];
+                                        if (point) {
+                                            if (signalImages['home']) {
+                                                ctx.drawImage(signalImages['home'], point.x - 10, point.y - 38, 30, 36);
+                                            }
+                                        }
+                                    }
+                                });
+                            }
+                        });
+                        
+                        chart.data.datasets.forEach((dataset, datasetIndex) => {
+                            if (dataset.isSignalDataset && !dataset.hidden) {
+                                dataset.data.forEach((datapoint, index) => {
+                                    if (datapoint.label) {
+                                        const point = chart.getDatasetMeta(datasetIndex).data[index];
+                                        if (point) {
+                                            const x = point.x;
+                                            const y = point.y;
+                                            const signalType = (datapoint.signalType || '').toLowerCase();
+                                            
+                                            // Handle Home Signal
+                                            if (signalType.includes('home') && signalImages['home']) {
+                                                ctx.drawImage(signalImages['home'], x - 6, y - 34, 30, 36);
+                                            } else if (signalType.includes('home')) {
+                                                ctx.fillStyle = '#FF0000';
+                                                ctx.beginPath();
+                                                ctx.arc(x, y, 8, 0, 2 * Math.PI);
+                                                ctx.fill();
+                                                ctx.fillStyle = '#FFFFFF';
+                                                ctx.beginPath();
+                                                ctx.arc(x, y, 5, 0, 2 * Math.PI);
+                                                ctx.fill();
+                                            }
+                                            
+                                            // Handle Distant Signal
+                                            if (signalType.includes('distant') && signalImages['distant']) {
+                                                ctx.drawImage(signalImages['distant'], x - 6, y - 32, 10, 30);
+                                            }
+                                            
+                                            ctx.fillStyle = '#000000';
+                                            ctx.font = 'bold 10px Arial';
+                                            ctx.textAlign = 'center';
+                                            ctx.fillText(datapoint.label, x, y - 38);
+                                        }
+                                    }
+                                });
+                            }
+                        });
+                    }
+                };
+
+                if (homeSignalsAnalysisChart) homeSignalsAnalysisChart.destroy();
+                homeSignalsAnalysisChart = plotChart('homeSignalsAnalysisChart', { datasets }, options, [signalLabelPlugin]);
+
+                // Create legend for Home signals chart
+                const homeStoppageLegend = document.getElementById('home-stoppage-legend');
+                if (homeStoppageLegend) {
+                    homeStoppageLegend.innerHTML = '';
+                    
+                    // Add legend items for each home signal stop (main datasets)
+                    stops.forEach((stop, idx) => {
+                        // Check if the LAST signal crossed before stopping is a Distant signal
+                        let lastSignalIsDistant = false;
+                        if (signalData && signalData.length > 0) {
+                            const signalLatKey = findKey(signalData[0], ['Latitude']);
+                            const signalLonKey = findKey(signalData[0], ['Longitude']);
+                            const typeKey = findKey(signalData[0], ['Type']);
+                            const stopSigKey = findKey(signalData[0], ['Designation Of Stop Signal']);
+                            const permSigKey = findKey(signalData[0], ['Designation Of Permissive Signal']);
+
+                            if (signalLatKey && signalLonKey) {
+                                const stopPoint = turf.point([allLocations[stop.endIndex].lon, allLocations[stop.endIndex].lat]);
+                                
+                                // Collect all signals crossed in the braking zone
+                                let signalsCrossed = [];
+                                
+                                for (const signal of signalData) {
+                                    const signalLat = parseFloat(signal[signalLatKey]);
+                                    const signalLon = parseFloat(signal[signalLonKey]);
+                                    if (isNaN(signalLat) || isNaN(signalLon)) continue;
+
+                                    const signalPoint = turf.point([signalLon, signalLat]);
+                                    const signalType = signal[typeKey] || signal[stopSigKey] || signal[permSigKey] || 'Unknown';
+                                    const signalTypeLower = signalType.toLowerCase();
+
+                                    // Find nearest RTIS point to this signal within braking zone
+                                    let nearestRtisIndex = -1;
+                                    let minDistToSignal = Infinity;
+
+                                    for (let i = stop.endIndex - 1; i >= 0; i--) {
+                                        const currentLoc = allLocations[i];
+                                        if (isNaN(currentLoc.time.getTime())) continue;
+
+                                        const currentPoint = turf.point([currentLoc.lon, currentLoc.lat]);
+                                        const distanceToStop = turf.distance(currentPoint, stopPoint, { units: 'meters' });
+                                        const distToSignal = turf.distance(currentPoint, signalPoint, { units: 'meters' });
+
+                                        if (distanceToStop > 3200) break;
+
+                                        if (distToSignal < minDistToSignal) {
+                                            minDistToSignal = distToSignal;
+                                            nearestRtisIndex = i;
+                                        }
+                                    }
+
+                                    // If signal is within threshold and in braking zone, record it
+                                    if (nearestRtisIndex !== -1 && minDistToSignal < MAX_SIGNAL_DISTANCE_METERS) {
+                                        signalsCrossed.push({
+                                            rtisIndex: nearestRtisIndex,
+                                            signalType: signalTypeLower,
+                                            signalName: signalType,
+                                            distance: minDistToSignal
+                                        });
+                                    }
+                                }
+
+                                // Sort by RTIS index to find order of signals crossed
+                                signalsCrossed.sort((a, b) => a.rtisIndex - b.rtisIndex);
+
+                                // Check if the LAST signal crossed is a Distant signal
+                                if (signalsCrossed.length > 0) {
+                                    const lastSignal = signalsCrossed[signalsCrossed.length - 1];
+                                    if (lastSignal.signalType.includes('distant') && !lastSignal.signalType.includes('home') && !lastSignal.signalType.includes('starter')) {
+                                        lastSignalIsDistant = true;
+                                    }
+                                }
+                            }
+                        }
+
+                        // Only include stops where the last signal crossed was Distant
+                        if (!lastSignalIsDistant) return;
+
+                        // Find corresponding dataset for this stop
+                        let datasetIdx = -1;
+                        for (let i = 0; i < homeSignalsAnalysisChart.data.datasets.length; i++) {
+                            const ds = homeSignalsAnalysisChart.data.datasets[i];
+                            if (ds.isHomeSignalStop && ds.stopIndex === idx) {
+                                datasetIdx = i;
+                                break;
+                            }
+                        }
+
+                        if (datasetIdx === -1) return;
+
+                        const dataset = homeSignalsAnalysisChart.data.datasets[datasetIdx];
+                        const color = dataset.borderColor;
+                        const nextSignal = findNextSignalAfterStop(turf.point([allLocations[stop.endIndex].lon, allLocations[stop.endIndex].lat]));
+                        let signalText = '';
+                        
+                        if (nextSignal) {
+                            signalText = `${nextSignal.station} (${nextSignal.type}) ${Math.round(nextSignal.distance)}m`;
+                        }
+
+                        const legendEl = document.createElement('span');
+                        legendEl.className = 'legend-item inline-flex flex-col items-start m-1 px-2 py-0.5 rounded-full text-xs font-medium';
+                        legendEl.style.backgroundColor = `${color}20`;
+                        legendEl.style.color = color;
+                        legendEl.innerHTML = `<div class="legend-item-content"><div class="legend-item-text">${signalText}<br>${formatTime(stop.time)}</div><span class="legend-item-delete" title="Click to delete this dataset">✕</span></div>`;
+                        legendEl.dataset.datasetIndex = datasetIdx;
+                        legendEl.title = `${signalText} - Stopped at ${formatTime(stop.time)}`;
+                        homeStoppageLegend.appendChild(legendEl);
+                    });
+
+                    // Add legend handlers
+                    homeStoppageLegend.querySelectorAll('.legend-item').forEach(item => {
+                        // Handle left-click to toggle visibility
+                        item.addEventListener('click', (e) => {
+                            if (e.target.classList.contains('legend-item-delete')) {
+                                e.stopPropagation();
+                                return;
+                            }
+
+                            const clickedIndex = parseInt(item.dataset.datasetIndex);
+                            const clickedDataset = homeSignalsAnalysisChart.data.datasets[clickedIndex];
+
+                            clickedDataset.hidden = !clickedDataset.hidden;
+                            item.classList.toggle('striked', clickedDataset.hidden);
+
+                            // Also toggle signal markers for this specific stop
+                            const stopIndex = clickedDataset.stopIndex;
+                            homeSignalsAnalysisChart.data.datasets.forEach((dataset, idx) => {
+                                if (dataset.isSignalDataset && dataset.stopIndex === stopIndex) {
+                                    dataset.hidden = clickedDataset.hidden;
+                                }
+                            });
+
+                            homeSignalsAnalysisChart.update();
+                        });
+
+                        // Handle delete button click
+                        const deleteBtn = item.querySelector('.legend-item-delete');
+                        if (deleteBtn) {
+                            deleteBtn.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                
+                                const datasetIndex = parseInt(item.dataset.datasetIndex);
+                                const stopIndex = homeSignalsAnalysisChart.data.datasets[datasetIndex].stopIndex;
+
+                                homeSignalsAnalysisChart.data.datasets.splice(datasetIndex, 1);
+
+                                // Also remove any associated signal datasets for this stop
+                                for (let i = homeSignalsAnalysisChart.data.datasets.length - 1; i >= 0; i--) {
+                                    const ds = homeSignalsAnalysisChart.data.datasets[i];
+                                    if (ds.isSignalDataset && ds.stopIndex === stopIndex) {
+                                        homeSignalsAnalysisChart.data.datasets.splice(i, 1);
+                                    }
+                                }
+
+                                item.remove();
+
+                                // Update dataset indices for remaining legend items
+                                homeStoppageLegend.querySelectorAll('.legend-item').forEach((legendItem, idx) => {
+                                    let correctIndex = 0;
+                                    for (let i = 0; i < homeSignalsAnalysisChart.data.datasets.length; i++) {
+                                        if (!homeSignalsAnalysisChart.data.datasets[i].isSignalDataset && !homeSignalsAnalysisChart.data.datasets[i].isCommonHomeSignal) {
+                                            if (correctIndex === idx) {
+                                                legendItem.dataset.datasetIndex = i;
+                                                break;
+                                            }
+                                            correctIndex++;
+                                        }
+                                    }
+                                });
+
+                                homeSignalsAnalysisChart.update();
+                            });
+                        }
+                    });
+                }
+            }
+
         });
     </script>
 
