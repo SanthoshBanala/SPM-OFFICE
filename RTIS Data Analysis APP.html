@@ -3511,6 +3511,7 @@
 
                 const options = getChartOptions(null, 'Distance (Meters)', 'Speed (KMPH)');
                 options.scales.x.reverse = true;
+                options.scales.x.ticks.color = '#000000';
                 options.scales.x.max = 3200; // Limit x-axis to 3200 meters max
                 
                 // Pre-load signal images (embedded as data URLs)
