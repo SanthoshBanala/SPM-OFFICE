@@ -1110,30 +1110,6 @@
                             </tr>
                         </tbody>
                     </table>
-                    <div class="relative border p-4 h-[160px]">
-                        <!-- other content -->
-
-                        <!-- Bottom-right signature block -->
-                        <div class="absolute bottom-4 left-4 text-right space-y-6">
-
-                            <!-- Loco Pilot -->
-                            <div>
-                                <p class="text-sm font-semibold">Signature of Loco Pilot</p>
-                                <div class="mt-2 w-48"></div>
-                            </div>
-                        </div>
-
-                        <div class="absolute bottom-4 right-4 text-left space-y-6">
-                            <!-- M Satyanarayana -->
-                            <div>
-                                <p class="text-sm font-semibold">M Satyanarayana</p>
-                                <p class="text-sm font-semibold">CLI / SPM / UBL</p>
-                                <div class="mt-2 w-48"></div>
-                            </div>
-
-                        </div>
-                    </div>
-
                 </div>
             </div>
 
@@ -1256,6 +1232,30 @@
                             </tr>
                         </tbody>
                     </table>
+                </div>
+
+                <div class="relative border p-4 h-[160px]">
+                    <!-- other content -->
+
+                    <!-- Bottom-right signature block -->
+                    <div class="absolute bottom-4 left-4 text-right space-y-6">
+
+                        <!-- Loco Pilot -->
+                        <div>
+                            <p class="text-sm font-semibold">Signature of Loco Pilot</p>
+                            <div class="mt-2 w-48"></div>
+                        </div>
+                    </div>
+
+                    <div class="absolute bottom-4 right-4 text-left space-y-6">
+                        <!-- M Satyanarayana -->
+                        <div>
+                            <input type="text" name="supervisor_name" placeholder="M Satyanarayana" value="M Satyanarayana" class="w-48 border rounded px-2 py-1 text-sm font-semibold" /><br/>
+                            <input type="text" name="supervisor_designation" placeholder="CLI / SPM / UBL" value=" CLI / SPM / UBL" class="w-48 border rounded px-2 py-1 text-sm font-semibold mt-1" />
+                            <div class="mt-2 w-48"></div>
+                        </div>
+
+                    </div>
                 </div>
 
                 <div id="brakeFeel-analysis-info" class="p-4 bg-blue-50 rounded-lg mb-4 hidden">
@@ -1394,8 +1394,8 @@
                         <div class="absolute bottom-4 right-4 text-left space-y-6">
                             <!-- M Satyanarayana -->
                             <div>
-                                <p class="text-sm font-semibold">M Satyanarayana</p>
-                                <p class="text-sm font-semibold">CLI / SPM / UBL</p>
+                                <input type="text" name="supervisor_name" placeholder="M Satyanarayana" value="M Satyanarayana" class="w-48 border rounded px-2 py-1 text-sm font-semibold" /><br/>
+                                <input type="text" name="supervisor_designation" placeholder="CLI / SPM / UBL" value=" CLI / SPM / UBL" class="w-48 border rounded px-2 py-1 text-sm font-semibold mt-1" />
                                 <div class="mt-2 w-48"></div>
                             </div>
 
@@ -2764,7 +2764,7 @@
                 };
                 options.scales.x.type = 'category';
                 options.scales.y.beginAtZero = true;
-                options.scales.y.max = 30;
+                options.scales.y.max = 20;
                 
                 brakeFeel600Chart = plotChart('brakeFeel600Chart', data, options);
             }
@@ -2932,7 +2932,7 @@
                 };
                 options.scales.x.type = 'category';
                 options.scales.y.beginAtZero = true;
-                options.scales.y.max = 80;
+                options.scales.y.max = 100;
                 
                 brakePowerChart = plotChart('brakePowerChart', data, options);
             }
