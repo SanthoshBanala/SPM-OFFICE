@@ -3295,6 +3295,7 @@
                         const stopSigKey = findKey(signalData[0], ['Designation Of Stop Signal']);
                         const permSigKey = findKey(signalData[0], ['Designation Of Permissive Signal']);
                         const dirKey = findKey(signalData[0], ['Direction', 'Dir']);
+                        const signalLabelKey = findKey(signalData[0], ['Signal Label']);
 
                         if (signalLatKey && signalLonKey) {
                             const signalMarkersData = [];
@@ -3363,13 +3364,15 @@
                                     );
 
                                     if (!signalExists) {
+                                        const signalLabel = signalLabelKey ? signal[signalLabelKey] : null;
                                         rawSignalData.push({
                                             x: distanceMap[nearestRtisIndex] + distanceToNextSignal,
                                             y: nearestLoc.speed,
                                             signalType: signalType,
                                             signalStation: signalStation,
                                             direction: signalDirection,
-                                            rtisIndex: nearestRtisIndex
+                                            rtisIndex: nearestRtisIndex,
+                                            signalLabel: signalLabel
                                         });
                                     }
                                 }
@@ -3454,7 +3457,12 @@
                                 } else if (typeLower.includes('distant')) {
                                     signalTypeShort = 'DS';
                                 }
-                                const signalLabel = `${sig.signalStation}-${signalTypeShort}(${sig.y.toFixed(1).replace(/\.0$/, '')})`;
+                                let signalLabel = '';
+                                if (sig.signalLabel) {
+                                    signalLabel = `${sig.signalLabel}(${sig.y.toFixed(1).replace(/\.0$/, '')})`;
+                                } else {
+                                    signalLabel = `${sig.signalStation}-${signalTypeShort}(${sig.y.toFixed(1).replace(/\.0$/, '')})`;
+                                }
 
                                 signalMarkersData.push({
                                     x: sig.x,
@@ -4118,6 +4126,7 @@
                         const stopSigKey = findKey(signalData[0], ['Designation Of Stop Signal']);
                         const permSigKey = findKey(signalData[0], ['Designation Of Permissive Signal']);
                         const dirKey = findKey(signalData[0], ['Direction', 'Dir']);
+                        const signalLabelKey = findKey(signalData[0], ['Signal Label']);
 
                         if (signalLatKey && signalLonKey) {
                             const signalMarkersData = [];
@@ -4177,13 +4186,15 @@
                                     );
 
                                     if (!signalExists) {
+                                        const signalLabel = signalLabelKey ? signal[signalLabelKey] : null;
                                         rawSignalData.push({
                                             x: distanceMap[nearestRtisIndex] + distanceToNextSignal,
                                             y: nearestLoc.speed,
                                             signalType: signalType,
                                             signalStation: signalStation,
                                             direction: signalDirection,
-                                            rtisIndex: nearestRtisIndex
+                                            rtisIndex: nearestRtisIndex,
+                                            signalLabel: signalLabel
                                         });
                                     }
                                 }
@@ -4260,7 +4271,12 @@
                                 } else if (typeLower.includes('distant')) {
                                     signalTypeShort = 'DS';
                                 }
-                                const signalLabel = `${sig.signalStation}-${signalTypeShort}(${sig.y.toFixed(1).replace(/\.0$/, '')})`;
+                                let signalLabel = '';
+                                if (sig.signalLabel) {
+                                    signalLabel = `${sig.signalLabel}(${sig.y.toFixed(1).replace(/\.0$/, '')})`;
+                                } else {
+                                    signalLabel = `${sig.signalStation}-${signalTypeShort}(${sig.y.toFixed(1).replace(/\.0$/, '')})`;
+                                }
 
                                 signalMarkersData.push({
                                     x: sig.x,
