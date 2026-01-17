@@ -1726,15 +1726,9 @@
                             loadingContainer.classList.add('hidden');
                             stationSelectionSection.classList.remove('hidden');
 
-                            // Show direction selector if any signal file is loaded (Signal, SYA, or Input C FSD Home Data)
-                            const hasSignalFile = signalData || syaData;
-                            if (hasSignalFile) {
+                            if (syaFileLoaded) {
                                 directionSelectWrapper.classList.remove('hidden');
-                                if (syaFileLoaded) {
-                                    showMessage("SYA File Detected", "A Single Yellow Aspect (SYA) file has been loaded. Please select the train direction in Step 2 before running the analysis.");
-                                } else if (signalData) {
-                                    showMessage("Signal File Loaded", "A Signal/FSD file has been loaded. Please select the train direction in Step 2 for accurate signal filtering.");
-                                }
+                                showMessage("SYA File Detected", "A Single Yellow Aspect (SYA) file has been loaded. Please select the train direction in Step 2 before running the analysis.");
                             } else if (syaFile) {
                                 showMessage("SYA File Warning", "A SYA file was detected, but no data was successfully parsed. Check the file format.");
                             }
@@ -2322,8 +2316,8 @@
                     plotFirst30MinutesChart(fullAnalysis);
                     plotBrakeFeel600Chart();
                     plotBrakePowerChart();
-                    plotStoppingAnalysisChart(selectedDirection);
-                    plotHomeSignalsChart(selectedDirection);
+                    plotStoppingAnalysisChart();
+                    plotHomeSignalsChart();
                     displayViolations(fullAnalysis);
 
                     loadingContainer.classList.add('hidden');
@@ -3128,7 +3122,6 @@
                 const typeKey = findKey(signalData[0], ['Type']);
                 const stopSigKey = findKey(signalData[0], ['Designation Of Stop Signal']);
                 const permSigKey = findKey(signalData[0], ['Designation Of Permissive Signal']);
-                const signalLabelKey = findKey(signalData[0], ['Signal Label']);
 
                 if (!latKey || !lonKey) return null;
 
@@ -3145,13 +3138,9 @@
 
                     if (distance < minDistance && distance > 0) {
                         minDistance = distance;
-                        const signalType = signal[typeKey] || signal[stopSigKey] || signal[permSigKey] || 'Unknown';
-                        const stationName = signal[stationKey] || 'N/A';
-                        const signalLabel = signal[signalLabelKey] || `${stationName}-${signalType}`;
                         closestSignal = {
-                            type: signalType,
-                            station: stationName,
-                            label: signalLabel,
+                            type: signal[typeKey] || signal[stopSigKey] || signal[permSigKey] || 'Unknown',
+                            station: signal[stationKey] || 'N/A',
                             distance: minDistance
                         };
                     }
@@ -3160,7 +3149,7 @@
                 return closestSignal && minDistance < 5000 ? closestSignal : null;
             }
 
-            function plotStoppingAnalysisChart(selectedDirection) {
+            function plotStoppingAnalysisChart() {
                 const STOP_SPEED_THRESHOLD = 2;
                 const MIN_STOP_DURATION_SECONDS = 10;
                 let stops = [];
@@ -3279,7 +3268,7 @@
                     let signalText = '';
                     
                     if (nextSignal) {
-                        signalText = `${nextSignal.label || (nextSignal.station + ' (' + nextSignal.type + ')')} ${Math.round(nextSignal.distance)}m`;
+                        signalText = `${nextSignal.station} (${nextSignal.type}) ${Math.round(nextSignal.distance)}m`;
                     }
 
                     const legendEl = document.createElement('span');
@@ -3306,7 +3295,6 @@
                         const stopSigKey = findKey(signalData[0], ['Designation Of Stop Signal']);
                         const permSigKey = findKey(signalData[0], ['Designation Of Permissive Signal']);
                         const dirKey = findKey(signalData[0], ['Direction', 'Dir']);
-                        const signalLabelKey = findKey(signalData[0], ['Signal Label']);
 
                         if (signalLatKey && signalLonKey) {
                             const signalMarkersData = [];
@@ -3375,13 +3363,11 @@
                                     );
 
                                     if (!signalExists) {
-                                        const signalLabel = signal[signalLabelKey] || `${signalStation}-${signalType}`;
                                         rawSignalData.push({
                                             x: distanceMap[nearestRtisIndex] + distanceToNextSignal,
                                             y: nearestLoc.speed,
                                             signalType: signalType,
                                             signalStation: signalStation,
-                                            signalLabel: signalLabel,
                                             direction: signalDirection,
                                             rtisIndex: nearestRtisIndex
                                         });
@@ -3392,28 +3378,24 @@
                             // Sort by rtisIndex to determine which signals were encountered first
                             rawSignalData.sort((a, b) => a.rtisIndex - b.rtisIndex);
 
-                            // Use user-selected direction if available, otherwise auto-detect from approach signals
-                            let trainDirection = selectedDirection || null;
-                            
-                            // If no user-selected direction, attempt auto-detection from approach signals
-                            if (!trainDirection) {
-                                const directionCounts = new Map();
-                                for (const sig of rawSignalData) {
-                                    const typeLower = sig.signalType.toLowerCase();
-                                    if (typeLower.includes('distant') || (typeLower.includes('home') && !typeLower.includes('starter'))) {
-                                        const dir = sig.direction;
-                                        if (dir && dir !== 'N/A') {
-                                            directionCounts.set(dir, (directionCounts.get(dir) || 0) + 1);
-                                        }
+                            // Determine train's direction based on approach signals (Distant/Home)
+                            const directionCounts = new Map();
+                            for (const sig of rawSignalData) {
+                                const typeLower = sig.signalType.toLowerCase();
+                                if (typeLower.includes('distant') || (typeLower.includes('home') && !typeLower.includes('starter'))) {
+                                    const dir = sig.direction;
+                                    if (dir && dir !== 'N/A') {
+                                        directionCounts.set(dir, (directionCounts.get(dir) || 0) + 1);
                                     }
                                 }
+                            }
 
-                                let maxCount = 0;
-                                for (const [dir, count] of directionCounts) {
-                                    if (count > maxCount) {
-                                        maxCount = count;
-                                        trainDirection = dir;
-                                    }
+                            let trainDirection = null;
+                            let maxCount = 0;
+                            for (const [dir, count] of directionCounts) {
+                                if (count > maxCount) {
+                                    maxCount = count;
+                                    trainDirection = dir;
                                 }
                             }
 
@@ -3446,15 +3428,9 @@
                                     continue;
                                 }
                                 
-                                // **STRICT** Filter by train direction - only show signals in the train's direction
-                                // Normalize direction comparison to handle case-insensitivity
-                                if (trainDirection) {
-                                    const sigDir = (sig.direction || '').toUpperCase();
-                                    const selectedDir = trainDirection.toUpperCase();
-                                    // Skip if signal direction doesn't match (and signal direction is not 'N/A')
-                                    if (sigDir !== 'N/A' && sigDir !== selectedDir) {
-                                        continue;
-                                    }
+                                // Filter by train direction - only show signals in the train's direction
+                                if (trainDirection && sig.direction !== 'N/A' && sig.direction !== trainDirection) {
+                                    continue;
                                 }
 
                                 // Skip starter signals - do not mark or label them (they are at x=0)
@@ -3478,12 +3454,12 @@
                                 } else if (typeLower.includes('distant')) {
                                     signalTypeShort = 'DS';
                                 }
-                                const chartSignalLabel = `${sig.signalLabel || (sig.signalStation + '-' + signalTypeShort)}(${sig.y.toFixed(1).replace(/\.0$/, '')})`;
+                                const signalLabel = `${sig.signalStation}-${signalTypeShort}(${sig.y.toFixed(1).replace(/\.0$/, '')})`;
 
                                 signalMarkersData.push({
                                     x: sig.x,
                                     y: sig.y,
-                                    label: chartSignalLabel,
+                                    label: signalLabel,
                                     signalType: sig.signalType,
                                     signalStation: sig.signalStation
                                 });
@@ -3967,7 +3943,7 @@
                 displayBrakingExceptions();
             }
 
-            function plotHomeSignalsChart(selectedDirection) {
+            function plotHomeSignalsChart() {
                 const STOP_SPEED_THRESHOLD = 2;
                 const MIN_STOP_DURATION_SECONDS = 10;
                 let stops = [];
@@ -4122,7 +4098,7 @@
                     let signalText = '';
                     
                     if (nextSignal) {
-                        signalText = `${nextSignal.label || (nextSignal.station + ' (' + nextSignal.type + ')')} ${Math.round(nextSignal.distance)}m`;
+                        signalText = `${nextSignal.station} (${nextSignal.type}) ${Math.round(nextSignal.distance)}m`;
                     }
 
                     datasets.push({
@@ -4142,7 +4118,6 @@
                         const stopSigKey = findKey(signalData[0], ['Designation Of Stop Signal']);
                         const permSigKey = findKey(signalData[0], ['Designation Of Permissive Signal']);
                         const dirKey = findKey(signalData[0], ['Direction', 'Dir']);
-                        const signalLabelKey = findKey(signalData[0], ['Signal Label']);
 
                         if (signalLatKey && signalLonKey) {
                             const signalMarkersData = [];
@@ -4202,13 +4177,11 @@
                                     );
 
                                     if (!signalExists) {
-                                        const signalLabel = signal[signalLabelKey] || `${signalStation}-${signalType}`;
                                         rawSignalData.push({
                                             x: distanceMap[nearestRtisIndex] + distanceToNextSignal,
                                             y: nearestLoc.speed,
                                             signalType: signalType,
                                             signalStation: signalStation,
-                                            signalLabel: signalLabel,
                                             direction: signalDirection,
                                             rtisIndex: nearestRtisIndex
                                         });
@@ -4218,40 +4191,30 @@
 
                             rawSignalData.sort((a, b) => a.rtisIndex - b.rtisIndex);
 
-                            // Use user-selected direction if available, otherwise auto-detect from approach signals
-                            let trainDirection = selectedDirection || null;
-                            
-                            // If no user-selected direction, attempt auto-detection from approach signals
-                            if (!trainDirection) {
-                                const directionCounts = new Map();
-                                for (const sig of rawSignalData) {
-                                    const typeLower = sig.signalType.toLowerCase();
-                                    if (typeLower.includes('distant') || (typeLower.includes('home') && !typeLower.includes('starter'))) {
-                                        const dir = sig.direction;
-                                        if (dir && dir !== 'N/A') {
-                                            directionCounts.set(dir, (directionCounts.get(dir) || 0) + 1);
-                                        }
+                            const directionCounts = new Map();
+                            for (const sig of rawSignalData) {
+                                const typeLower = sig.signalType.toLowerCase();
+                                if (typeLower.includes('distant') || (typeLower.includes('home') && !typeLower.includes('starter'))) {
+                                    const dir = sig.direction;
+                                    if (dir && dir !== 'N/A') {
+                                        directionCounts.set(dir, (directionCounts.get(dir) || 0) + 1);
                                     }
                                 }
+                            }
 
-                                let maxCount = 0;
-                                for (const [dir, count] of directionCounts) {
-                                    if (count > maxCount) {
-                                        maxCount = count;
-                                        trainDirection = dir;
-                                    }
+                            let trainDirection = null;
+                            let maxCount = 0;
+                            for (const [dir, count] of directionCounts) {
+                                if (count > maxCount) {
+                                    maxCount = count;
+                                    trainDirection = dir;
                                 }
                             }
 
                             const stationFirstSignalType = new Map();
                             for (const sig of rawSignalData) {
-                                // Normalize direction comparison for strict matching
-                                if (trainDirection) {
-                                    const sigDir = (sig.direction || '').toUpperCase();
-                                    const selectedDir = trainDirection.toUpperCase();
-                                    if (sigDir !== 'N/A' && sigDir !== selectedDir) {
-                                        continue;
-                                    }
+                                if (trainDirection && sig.direction !== 'N/A' && sig.direction !== trainDirection) {
+                                    continue;
                                 }
                                 
                                 const typeLower = sig.signalType.toLowerCase();
@@ -4273,13 +4236,8 @@
                                     continue;
                                 }
                                 
-                                // **STRICT** Filter by train direction - only show signals in the train's direction
-                                if (trainDirection) {
-                                    const sigDir = (sig.direction || '').toUpperCase();
-                                    const selectedDir = trainDirection.toUpperCase();
-                                    if (sigDir !== 'N/A' && sigDir !== selectedDir) {
-                                        continue;
-                                    }
+                                if (trainDirection && sig.direction !== 'N/A' && sig.direction !== trainDirection) {
+                                    continue;
                                 }
 
                                 // For Home signals chart, show Home signals and Distant signals (exclude Starter)
@@ -4302,12 +4260,12 @@
                                 } else if (typeLower.includes('distant')) {
                                     signalTypeShort = 'DS';
                                 }
-                                const chartSignalLabel = `${sig.signalLabel || (sig.signalStation + '-' + signalTypeShort)}(${sig.y.toFixed(1).replace(/\.0$/, '')})`;
+                                const signalLabel = `${sig.signalStation}-${signalTypeShort}(${sig.y.toFixed(1).replace(/\.0$/, '')})`;
 
                                 signalMarkersData.push({
                                     x: sig.x,
                                     y: sig.y,
-                                    label: chartSignalLabel,
+                                    label: signalLabel,
                                     signalType: sig.signalType,
                                     signalStation: sig.signalStation
                                 });
