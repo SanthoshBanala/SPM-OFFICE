@@ -2932,7 +2932,7 @@
                 };
                 options.scales.x.type = 'category';
                 options.scales.y.beginAtZero = true;
-                options.scales.y.max = 100;
+                options.scales.y.max = 130;
                 
                 brakePowerChart = plotChart('brakePowerChart', data, options);
             }
@@ -3025,7 +3025,7 @@
                     newRow.querySelectorAll('input').forEach(input => input.value = '');
                     newRow.querySelectorAll('textarea').forEach(t => t.value = '');
 
-                    row.parentNode.appendChild(newRow);
+                    row.parentNode.insertBefore(newRow, row.nextSibling);
                     return;
                 }
 
