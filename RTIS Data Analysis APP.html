@@ -600,6 +600,18 @@
                 display: block !important;
             }
 
+            /* Brake Analysis Print Mode */
+            body.brake-analysis-print > div > h1,
+            body.brake-analysis-print > div > h2:nth-of-type(1),
+            body.brake-analysis-print > div > h2:nth-of-type(2),
+            body.brake-analysis-print > div > p:first-of-type {
+                display: none !important;
+            }
+
+            body.brake-analysis-print #trip-details-section {
+                display: none !important;
+            }
+
             .chart-section,
             canvas {
                 background-color: #ffffff !important;
@@ -1288,10 +1300,10 @@
             </div>
 
             <div class="page-break"></div>
-            <div class="chart-section">
+            <div class="chart-section" id="braking-pattern-section">
                 <div class="flex justify-between items-center mb-2 md:mb-4 gap-2">
                     <h2 class="text-lg md:text-2xl font-bold text-black-800 text-center flex-1">4. Braking Pattern Analysis</h2>
-                    <!--<button id="print-brake-analysis" class="print-brake-analysis no-print" title="Print Braking Analysis">Print</button>-->
+                    <button id="print-brake-analysis" class="print-brake-analysis no-print px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg shadow-md hover:bg-blue-700 transition-colors" title="Print Braking Analysis">Print</button>
                     <button id="toggle-all-brake-legends" class="toggle-all-legends no-print" title="Toggle all legends">Toggle All</button>
                 </div>
                 <div id="stoppage-legend"
@@ -1340,8 +1352,16 @@
                 </div>
 
                 <!-- Speed Analysis Table -->
+                <div class="mb-4 flex gap-2 no-print">
+                    <button id="populate-speed-analysis" class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg shadow-md hover:bg-indigo-700 transition-colors">
+                        Populate Table
+                    </button>
+                    <span class="text-sm text-gray-600 self-center">Auto-populate table with station names</span>
+                </div>
+
+                <!-- Speed Analysis Table -->
                 <div class="table-container relative shadow-md sm:rounded-lg text-center">
-                    <table class="w-full text-sm text-center text-black-500 brake-analysis-table" id="speedTable">
+                    <table class="w-full text-sm text-center text-black-500 brake-analysis-table" id="brakeAnalysisSpeedTable">
                         <thead>
                             <tr>
                                 <th>S No</th>
@@ -1502,6 +1522,7 @@
             let originalRtisData, oheData, cautionData, signalData, syaData, bulkData;
             let allLocations, speedChart, first30MinChart, magnifiedSpeedChart, stoppingAnalysisChart, homeSignalsAnalysisChart, brakeFeel600Chart, brakePowerChart;
             let speedViolations = [], brakingExceptions = [], allLabels = [], allSpeedData = [], allMaxSpeedData = [], allTimestamps = [], signalEvents = [], syaMatchEvents = [], syaPlotData = [], bulkMatchEvents = [];
+            let stoppingAnalysisStops = [], homeSignalsStops = [];
 
             const fileInput = document.getElementById('file-input');
             const fileDropArea = document.getElementById('file-drop-area');
@@ -1549,6 +1570,14 @@
             closeMessage.addEventListener('click', () => messageBox.classList.add('hidden'));
             resetZoomButton.addEventListener('click', () => magnifiedChartContainer.classList.add('hidden'));
             printReportButton.addEventListener('click', () => window.print());
+            const printBrakeBtn = document.getElementById('print-brake-analysis');
+            if (printBrakeBtn) {
+                printBrakeBtn.addEventListener('click', printBrakeAnalysis);
+            }
+            const populateSpeedAnalysisBtn = document.getElementById('populate-speed-analysis');
+            if (populateSpeedAnalysisBtn) {
+                populateSpeedAnalysisBtn.addEventListener('click', populateSpeedAnalysisTable);
+            }
             runAnalysisBtn.addEventListener('click', runAnalysis);
 
             // Auto-format time inputs to HH:MM:SS
@@ -1572,6 +1601,203 @@
                 messageTitle.textContent = title;
                 messageContent.textContent = content;
                 messageBox.classList.remove('hidden');
+            }
+
+            function populateSpeedAnalysisTable() {
+                const speedTable = document.getElementById('brakeAnalysisSpeedTable');
+                console.log('speedTable:', speedTable);
+                if (!speedTable) return;
+
+                const tbody = speedTable.querySelector('tbody');
+                console.log('tbody:', tbody);
+                if (!tbody) return;
+
+                // Use the global stoppingAnalysisStops array - includes ALL stations from Brake Analysis graph
+                if (!stoppingAnalysisStops || stoppingAnalysisStops.length === 0) {
+                    showMessage('Info', 'No stop data available. Please generate the Braking Pattern Analysis chart first.');
+                    return;
+                }
+
+                // Get ALL stations from the Brake Analysis (no filtering by legend visibility)
+                const selectedStations = stoppingAnalysisStops.map(stop => stop.station);
+                console.log('ALL stations from Brake Analysis:', selectedStations);
+
+                if (selectedStations.length === 0) {
+                    showMessage('Info', 'No valid station data found.');
+                    return;
+                }
+
+                // Clear existing rows except the first one
+                const rows = tbody.querySelectorAll('tr');
+                console.log('Clearing rows, current count:', rows.length);
+                rows.forEach((row, index) => {
+                    if (index > 0) row.remove();
+                });
+
+                // Get the first row and fill it with the first station
+                const firstRow = tbody.querySelector('tr');
+                console.log('firstRow:', firstRow);
+                if (firstRow) {
+                    const textareas = firstRow.querySelectorAll('textarea');
+                    console.log('textareas in firstRow:', textareas.length);
+                    if (textareas.length >= 6) {
+                        textareas[0].value = '0'; // S No
+                        textareas[0].style.textAlign = 'center';
+                        textareas[1].value = selectedStations[0]; // Station
+                        textareas[1].style.textAlign = 'center';
+                        textareas[2].value = ''; // Speed at Double Yellow - user will fill
+                        textareas[2].style.textAlign = 'center';
+                        textareas[3].value = ''; // Speed at Single Yellow - user will fill
+                        textareas[3].style.textAlign = 'center';
+                        textareas[4].value = 'NA'; // Cross over speed default
+                        textareas[4].style.textAlign = 'center';
+                        textareas[5].value = 'NIL'; // Remarks default
+                        textareas[5].style.textAlign = 'center';
+                        console.log('First row filled with station:', selectedStations[0]);
+                    }
+                }
+
+                // Add rows for remaining stations
+                console.log('Adding', selectedStations.length - 1, 'rows');
+                for (let i = 1; i < selectedStations.length; i++) {
+                    const newRow = document.createElement('tr');
+                    newRow.innerHTML = `
+                        <td><textarea style="text-align: center;">${i}</textarea></td>
+                        <td><textarea style="text-align: center;">${selectedStations[i]}</textarea></td>
+                        <td><textarea style="text-align: center;"></textarea></td>
+                        <td><textarea style="text-align: center;"></textarea></td>
+                        <td><textarea style="text-align: center;">NA</textarea></td>
+                        <td><textarea style="text-align: center;">NIL</textarea></td>
+                        <td>
+                            <div class="flex justify-center items-center space-x-1">
+                                <button type="button" class="add-row text-green-600 text-lg font-bold hover:text-green-800">+</button>
+                                <button type="button" class="remove-row text-red-600 text-lg font-bold hover:text-red-800">&minus;</button>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(newRow);
+                    console.log('Added row', i, 'with station:', selectedStations[i]);
+
+                    // Attach event listeners to the new buttons
+                    const addBtn = newRow.querySelector('.add-row');
+                    const removeBtn = newRow.querySelector('.remove-row');
+                    
+                    if (addBtn) {
+                        addBtn.addEventListener('click', function() {
+                            const newRow = this.closest('tr').cloneNode(true);
+                            this.closest('tr').after(newRow);
+                            attachRowButtonListeners(newRow);
+                        });
+                    }
+                    
+                    if (removeBtn) {
+                        removeBtn.addEventListener('click', function() {
+                            this.closest('tr').remove();
+                        });
+                    }
+                }
+
+                // Attach listeners to existing buttons in first row
+                const addBtnFirst = firstRow.querySelector('.add-row');
+                const removeBtnFirst = firstRow.querySelector('.remove-row');
+                
+                if (addBtnFirst) {
+                    addBtnFirst.addEventListener('click', function() {
+                        const newRow = this.closest('tr').cloneNode(true);
+                        this.closest('tr').after(newRow);
+                        attachRowButtonListeners(newRow);
+                    });
+                }
+                
+                if (removeBtnFirst) {
+                    removeBtnFirst.addEventListener('click', function() {
+                        this.closest('tr').remove();
+                    });
+                }
+
+                console.log('Populate complete. Total rows now:', tbody.querySelectorAll('tr').length);
+                showMessage('Success', `Table populated with ${selectedStations.length} station(s) from Brake Analysis`);
+            }
+
+            function attachRowButtonListeners(row) {
+                const addBtn = row.querySelector('.add-row');
+                const removeBtn = row.querySelector('.remove-row');
+                
+                if (addBtn) {
+                    addBtn.removeEventListener('click', null);
+                    addBtn.addEventListener('click', function() {
+                        const newRow = this.closest('tr').cloneNode(true);
+                        this.closest('tr').after(newRow);
+                        attachRowButtonListeners(newRow);
+                    });
+                }
+                
+                if (removeBtn) {
+                    removeBtn.removeEventListener('click', null);
+                    removeBtn.addEventListener('click', function() {
+                        this.closest('tr').remove();
+                    });
+                }
+            }
+
+            function printBrakeAnalysis() {
+                console.log('Print brake analysis clicked');
+                // Get all sections
+                const outputSections = document.getElementById('output-sections');
+                const brakingPatternSection = document.getElementById('braking-pattern-section');
+                const brakingExceptionsContainer = document.getElementById('braking-exceptions-container');
+                
+                console.log('Output sections:', outputSections);
+                console.log('Braking pattern section:', brakingPatternSection);
+                console.log('Braking exceptions:', brakingExceptionsContainer);
+                
+                if (!outputSections || !brakingPatternSection) {
+                    console.error('Missing required elements');
+                    return;
+                }
+                
+                // Store original states
+                const originalOutputState = outputSections.style.display;
+                const originalExceptionsState = brakingExceptionsContainer ? brakingExceptionsContainer.style.display : 'hidden';
+                
+                // Add brake-analysis-print class to hide headers and trip details
+                document.body.classList.add('brake-analysis-print');
+                
+                // Show the braking exceptions container
+                if (brakingExceptionsContainer) {
+                    brakingExceptionsContainer.style.display = '';
+                }
+                
+                // Show only the braking pattern section by hiding output-sections and showing just the pattern
+                const allElements = outputSections.querySelectorAll(':scope > div');
+                const elementsStates = [];
+                
+                allElements.forEach(element => {
+                    const originalState = element.style.display;
+                    elementsStates.push({ element, originalState });
+                    if (element !== brakingPatternSection) {
+                        element.style.display = 'none';
+                    }
+                });
+                
+                console.log('Hiding', allElements.length - 1, 'elements');
+                
+                // Trigger print
+                setTimeout(() => {
+                    window.print();
+                    
+                    // Restore original states after print
+                    setTimeout(() => {
+                        document.body.classList.remove('brake-analysis-print');
+                        elementsStates.forEach(({ element, originalState }) => {
+                            element.style.display = originalState;
+                        });
+                        if (brakingExceptionsContainer) {
+                            brakingExceptionsContainer.style.display = originalExceptionsState;
+                        }
+                        console.log('States restored');
+                    }, 100);
+                }, 100);
             }
 
             // *** TIME FORMATTER ***
@@ -3181,6 +3407,7 @@
 
                 stoppageLegend.innerHTML = '';
                 brakingExceptions = [];
+                stoppingAnalysisStops = stops; // Store stops globally for table population
                 if (stops.length === 0) {
                     stoppageLegend.innerHTML = 'No significant stops detected.';
                     if (stoppingAnalysisChart) stoppingAnalysisChart.destroy();
