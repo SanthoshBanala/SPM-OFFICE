@@ -608,9 +608,10 @@
         .brake-analysis-table thead th {
             background-color: #f3f4f6;
             font-weight: 600;
-            font-size: 0.75rem;
+            font-size: 0.95rem;
             text-transform: none;
             color: #374151;
+            text-align: center;
         }
 
         .brake-analysis-table td textarea {
@@ -2794,7 +2795,6 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                     const gpsTimeKey = findKey(rtisData[0], ['Gps Time']);
                     const speedKey = findKey(rtisData[0], ['Speed']);
                     const stationKey = findKey(rtisData[0], ['last/cur stationCode', 'stationCode', 'Station Code', 'Station', 'STATION']);
-                    const distFromPrevKey = findKey(rtisData[0], ['distFromPrevLatLng']);
                     // *** FIND RTIS DEVICE ID KEY ***
                     const deviceIdKey = findKey(rtisData[0], ['Device Id', 'DeviceId', 'Asset Id', 'DeviceID']);
 
@@ -2840,7 +2840,16 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                         allTimestamps.push(logTime);
                         allSpeedData.push(actualSpeed);
                         allMaxSpeedData.push(maxSpeed);
-                        const distFromPrev = distFromPrevKey ? parseFloat(row[distFromPrevKey]) || 0 : 0;
+                        // Calculate distance in metres from Speed (KMPH) using actual time difference
+                        // distance = speed (KMPH) × time_diff (seconds) / 3.6
+                        let distFromPrev = 0;
+                        if (allLocations.length > 0) {
+                            const prevTime = allLocations[allLocations.length - 1].time;
+                            const timeDiffSeconds = (logTime - prevTime) / 1000; // Convert ms to seconds
+                            if (timeDiffSeconds > 0 && timeDiffSeconds < 60) { // Reasonable time gap (< 60 seconds)
+                                distFromPrev = actualSpeed * timeDiffSeconds / 3.6;
+                            }
+                        }
                         allLocations.push({ lat, lon, speed: actualSpeed, station: row[stationKey], time: logTime, point: turf.point([lon, lat]), distFromPrev: distFromPrev });
 
                         // SYA Matching
@@ -3796,16 +3805,16 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                     // First pass: calculate cumulative distances backwards from stop
                     for (let i = stop.endIndex - 1; i >= 0; i--) {
                         const currentLoc = allLocations[i];
+                        // Add distance from current point to next point (towards stop) FIRST
+                        if (i < stop.endIndex - 1 && allLocations[i + 1]) {
+                            const nextDist = allLocations[i + 1].distFromPrev || 0;
+                            cumulativeDistance += nextDist;
+                        }
                         if (isNaN(currentLoc.time.getTime())) {
                             distanceMap[i] = cumulativeDistance;
                             continue;
                         }
                         distanceMap[i] = cumulativeDistance;
-                        // Add distance from next point to current point
-                        if (i < stop.endIndex - 1 && allLocations[i + 1]) {
-                            const nextDist = allLocations[i + 1].distFromPrev || 0;
-                            cumulativeDistance += nextDist;
-                        }
                     }
 
                     // Get the distance to next signal after stopping
@@ -3895,16 +3904,16 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                             let cumulativeDistance = 0;
                             for (let i = stop.endIndex - 1; i >= 0; i--) {
                                 const currentLoc = allLocations[i];
+                                // Add distance from current point to next point (towards stop) FIRST
+                                if (i < stop.endIndex - 1 && allLocations[i + 1]) {
+                                    const nextDist = allLocations[i + 1].distFromPrev || 0;
+                                    cumulativeDistance += nextDist;
+                                }
                                 if (isNaN(currentLoc.time.getTime())) {
                                     distanceMap[i] = cumulativeDistance;
                                     continue;
                                 }
                                 distanceMap[i] = cumulativeDistance;
-                                // Add distance from next point to current point
-                                if (i < stop.endIndex - 1 && allLocations[i + 1]) {
-                                    const nextDist = allLocations[i + 1].distFromPrev || 0;
-                                    cumulativeDistance += nextDist;
-                                }
                             }
 
                             // Check which signals were passed in the braking period for this stop
