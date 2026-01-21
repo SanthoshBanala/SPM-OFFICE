@@ -612,7 +612,7 @@
             word-wrap: break-word;
             overflow-wrap: break-word;
             white-space: normal;
-            text-align: left;
+            text-align: center;
             vertical-align: middle;
             padding: 0;
             border: 1px solid #d1d5db;
@@ -635,7 +635,7 @@
             height: 45px !important;
             padding: 0 !important;
             font-size: 0.75rem !important;
-            text-align: left;
+            text-align: center;
             border: 1px solid #d1d5db;
             border-radius: 0.25rem;
             resize: none;
@@ -646,13 +646,11 @@
         /* Column widths: Equal width for columns 1-5, 3x for Remarks, fixed for Actions */
         /* Total: 5 cols × 11% = 55% + Remarks 33% + Actions 12% = 100% */
         
-        /* S No column */
-        .brake-analysis-table th:nth-child(1),
-        .brake-analysis-table td:nth-child(1) {
-            width: 12%;
-        }
+        
 
-        /* Station, DY, SY, Crossover - equal width */
+        /* Station, DY, SY, Crossover - equal width */ 
+        .brake-analysis-table th:nth-child(1),
+        .brake-analysis-table td:nth-child(1)
         .brake-analysis-table th:nth-child(2),
         .brake-analysis-table td:nth-child(2),
         .brake-analysis-table th:nth-child(3),
@@ -660,19 +658,23 @@
         .brake-analysis-table th:nth-child(4),
         .brake-analysis-table td:nth-child(4),
         .brake-analysis-table th:nth-child(5),
-        .brake-analysis-table td:nth-child(5) {
-            width: 12%;
+        .brake-analysis-table td:nth-child(5)
+        .brake-analysis-table th:nth-child(6),
+        .brake-analysis-table td:nth-child(6),
+        .brake-analysis-table th:nth-child(7),
+        .brake-analysis-table td:nth-child(7) {
+            width: 9%;
         }
 
         /* Remarks column - 3x wider (33%) */
-        .brake-analysis-table th:nth-child(6),
-        .brake-analysis-table td:nth-child(6) {
-            width: 33%;
+        .brake-analysis-table th:nth-child(8),
+        .brake-analysis-table td:nth-child(8) {
+            width: 30%;
         }
 
         /* Actions column - fixed width for +/- buttons */
-        .brake-analysis-table th:nth-child(7),
-        .brake-analysis-table td:nth-child(7) {
+        .brake-analysis-table th:nth-child(9),
+        .brake-analysis-table td:nth-child(9) {
             width: 6%;
             min-width: 60px;
         }
@@ -1602,8 +1604,10 @@
                             <tr>
                                 <th>S No</th>
                                 <th>Station</th>
-                                <th>Speed at Double Yellow</th>
-                                <th>Speed at Single Yellow</th>
+                                <th>Distant Aspect</th>                                
+                                <th>Speed at Distant</th>
+                                <th>Home Aspect</th>                                
+                                <th>Speed at Home</th>
                                 <th>Cross over speed (if any)</th>
                                 <th>Remarks</th>
                                 <th></th>
@@ -1612,6 +1616,12 @@
 
                         <tbody>
                             <tr>
+                                <td>
+                                    <textarea></textarea>
+                                </td>
+                                <td>
+                                    <textarea></textarea>
+                                </td>
                                 <td>
                                     <textarea></textarea>
                                 </td>
