@@ -8,6 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.1.0/dist/chartjs-plugin-zoom.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
     <script src='https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js'></script>
     <style>
@@ -127,6 +128,20 @@
             background-color: white;
             box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
             page-break-inside: avoid;
+        }
+
+        @media print {
+            #output-sections > * + * {
+                margin-top: 0.3rem !important;
+            }
+
+            #output-sections > #trip-details-section + * {
+                margin-top: 0.2rem !important;
+            }
+
+            #output-sections {
+                gap: 0.2rem !important;
+            }
         }
 
         @media print {
@@ -679,14 +694,37 @@
         @media print {
             @page {
                 size: A4;
-                margin: 0.5cm;
+                margin: 0.3cm;
             }
 
             body {
                 background-color: #ffffff;
                 margin: 0;
-                padding: 0.25cm;
+                padding: 0;
                 width: 100%;
+            }
+
+            #main-container {
+                padding: 0.3cm !important;
+                margin: 0 !important;
+                border-radius: 0 !important;
+                box-shadow: none !important;
+            }
+
+            h1 {
+                font-size: 1rem !important;
+                margin: 0.05cm 0 !important;
+                line-height: 1.1 !important;
+            }
+
+            h2 {
+                font-size: 0.95rem !important;
+                margin: 0.1cm 0 !important;
+                line-height: 1.1 !important;
+            }
+
+            p:first-of-type {
+                display: none !important;
             }
 
             .no-print {
@@ -695,6 +733,48 @@
 
             #trip-details-section {
                 display: block !important;
+                padding: 0.25rem 0.4rem !important;
+                margin: 0 !important;
+                margin-bottom: 0.15rem !important;
+                border-left: 2px solid #818cf8 !important;
+                background-color: #f0f4ff !important;
+                page-break-after: avoid !important;
+            }
+
+            #trip-details-section h3 {
+                font-size: 0.85rem !important;
+                margin: 0 0 0.15rem 0 !important;
+                font-weight: 700 !important;
+            }
+
+            #trip-details-content {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr !important;
+                gap: 0.2rem !important;
+                font-size: 0.65rem !important;
+            }
+
+            #trip-details-content > div {
+                margin: 0 !important;
+                padding: 0.15rem !important;
+                line-height: 1.2 !important;
+            }
+
+            .chart-section#first30-section {
+                page-break-after: auto !important;
+                padding: 0.4rem !important;
+                margin: 0 !important;
+                margin-bottom: 0 !important;
+            }
+
+            #first30-section h2 {
+                font-size: 0.9rem !important;
+                margin: 0 0 0.2rem 0 !important;
+            }
+
+            .relative.mb-8.h-\[300px\] {
+                height: 200px !important;
+                margin-bottom: 0 !important;
             }
 
             /* Brake Analysis Print Mode */
@@ -717,7 +797,12 @@
             }
 
             .chart-a4 {
+                height: 200px !important;
+            }
+
+            #first30-section .relative.mb-8 {
                 height: 300px !important;
+                margin-bottom: 0.3rem !important;
             }
 
             /* Collapse struck-out legends during printing - all style variations */
@@ -911,16 +996,16 @@
     </div>
 
     <div
-        class="max-w-7xl mx-auto bg-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-lg md:shadow-2xl space-y-1 md:space-y-1">
+        class="max-w-7xl mx-auto bg-white p-4 md:p-8 rounded-xl md:rounded-2xl shadow-lg md:shadow-2xl space-y-1 md:space-y-1" id="main-container">
         <h1 class="text-2xl md:text-3xl font-bold text-blue-800 text-center">South Western Railway</h1>
         <h2 class="text-2xl md:text-2xl font-bold text-blue-800 text-center">UBL Division</h2>
         <h2 class="text-2xl md:text-2xl font-bold text-blue-800 text-center">Train Run Analysis</h2>
         <p class="text-sm md:text-lg text-gray-600 text-center">Analysis of speed, performance, and violations.</p>
 
         <div id="trip-details-section" class="hidden px-3 md:px-4 py-2 md:py-3 border-l-4 border-indigo-400 bg-indigo-50 rounded-lg">
-            <h3 class="text-lg md:text-xl font-bold text-indigo-800 mb-3">Trip Details</h3>
+            <h3 class="text-lg md:text-xl font-bold text-indigo-800 mb-2 text-center">1. Trip Details</h3>
             <div id="trip-details-content"
-                class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 text-sm">
+                class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 text-sm gap-2">
             </div>
         </div>
 
@@ -1027,9 +1112,170 @@
                     Report</button>
             </div>
 
-            <div class="chart-section">
-                <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-2 md:mb-4">1. Full Run Speed
+            <div id="violations-container" class="chart-section hidden">
+                <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-2 md:mb-4">Speed Violations
+                    Detected</h2>
+                <p class="text-center text-xs md:text-sm text-gray-500 mb-4 no-print">Tap row to view graph.</p>
+                <div class="table-container relative shadow-md sm:rounded-lg">
+                    <table class="w-full text-sm text-left text-gray-500 whitespace-nowrap data-table">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                            <tr>
+                                <th class="py-1 px-1">OHE Masts</th>
+                                <th class="py-1 px-1">Max Speed</th>
+                                <th class="py-1 px-1">Permitted</th>
+                                <th class="py-1 px-1">Duration (s)</th>
+                                <th class="py-1 px-1">Distance (m)</th>
+                                <th class="py-1 px-1">Breach Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="violations-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="magnified-chart-container" class="chart-section hidden">
+                <h2 class="text-lg md:text-xl font-bold text-gray-800 text-center mb-2 md:mb-4">Detailed View</h2>
+                <div class="relative h-64 md:h-96"><canvas id="magnifiedSpeedChart"></canvas></div>
+                <div class="mt-4 text-center no-print"><button id="reset-zoom"
+                        class="w-full md:w-auto px-4 py-3 md:py-2 bg-gray-200 text-gray-700 font-medium rounded-lg shadow-sm hover:bg-gray-300">Close
+                        Detail View</button></div>
+            </div>
+
+            <div class="chart-section" id="first30-section">
+                <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-4">
+                    2. First 30 Minutes
+                </h2>
+
+                <div class="mb-3 flex gap-2 justify-center no-print">
+                    <button id="zoom-in-btn-first30" class="px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors" title="Zoom In">🔍+ Zoom In</button>
+                    <button id="zoom-out-btn-first30" class="px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors" title="Zoom Out">🔍- Zoom Out</button>
+                    <button id="zoom-reset-btn-first30" class="px-3 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors" title="Reset Zoom">↺ Reset</button>
+                </div>
+
+                <div class="relative mb-8 h-[350px]">
+                    <canvas id="first30MinChart" class="chart-a4"></canvas>
+                </div>
+
+                <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-6 hidden">
+                    Brake Feel Test Analysis
+                </h3>
+                <div class="relative mb-8 h-[300px] hidden">
+                    <canvas id="brakeFeel600Chart" class="chart-a4"></canvas>
+                </div>
+
+                <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-6 hidden">
+                    Brake Power Test Analysis
+                </h3>
+
+                <div class="relative mb-8 h-[300px] hidden">
+                    <canvas id="brakePowerChart" class="chart-a4"></canvas>
+                </div>
+
+                <div id="brakePower-analysis-info" class="p-4 bg-blue-50 rounded-lg mb-4 hidden">
+                    <h4 class="text-sm font-semibold text-blue-900 mb-2">Brake Power Test Analysis Summary</h4>
+                    <table class="w-full text-sm text-left text-blue-800">
+                        <tbody>
+                            <tr>
+                                <td class="py-1 px-2 font-medium">Initial Speed Attained:</td>
+                                <td class="py-1 px-2" id="brakePower-initial-speed">-</td>
+                            </tr>
+                            <tr>
+                                <td class="py-1 px-2 font-medium">Speed after Braking:</td>
+                                <td class="py-1 px-2" id="brakePower-final-speed">-</td>
+                            </tr>
+                            <tr>
+                                <td class="py-1 px-2 font-medium">Speed Reduction (%):</td>
+                                <td class="py-1 px-2" id="brakePower-speed-reduction">-</td>
+                            </tr>
+                            <tr>
+                                <td class="py-1 px-2 font-medium">Brakes Effective:</td>
+                                <td class="py-1 px-2" id="brakePower-effective"><span class="font-bold text-green-700">-</span></td>
+                            </tr>
+                            <tr>
+                                <td class="py-1 px-2 font-medium">Distance Covered:</td>
+                                <td class="py-1 px-2" id="brakePower-distance">-</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-2">
+                    Brake Feel and Brake Power Tests Details
+                </h3>
+
+                <div class="table-container relative shadow-md sm:rounded-lg mt-2">
+                    <table class="w-full text-sm text-left text-black-500 data-table">
+                        <tbody>
+                            <tr>
+                                <td class="py-1 px-1 font-medium text-black-700">
+                                    Brake Feel Test
+                                </td>
+                                <td class="py-1 px-1">
+                                    <input type="text" name="brake_feel" placeholder="Enter result"
+                                        class="w-full border rounded px-2 py-1 text-sm" />
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td class="py-1 px-1 font-medium text-black-700">
+                                    Brake Power Test
+                                </td>
+                                <td class="py-1 px-1">
+                                    <input type="text" name="brake_power" placeholder="Enter result"
+                                        class="w-full border rounded px-2 py-1 text-sm" />
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td class="py-1 px-1 font-medium text-black-700">
+                                    Remarks (if any)
+                                </td>
+                                <td class="py-1 px-1">
+                                    <input type="text" name="remarks" placeholder="Optional remarks"
+                                        class="w-full border rounded px-2 py-1 text-sm" />
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="brakeFeel-analysis-info" class="p-4 bg-blue-50 rounded-lg mb-4 hidden">
+                    <h4 class="text-sm font-semibold text-blue-900 mb-2">Brake Feel Test Analysis Summary</h4>
+                    <table class="w-full text-sm text-left text-blue-800">
+                        <tbody>
+                            <tr>
+                                <td class="py-1 px-2 font-medium">Initial Speed Attained:</td>
+                                <td class="py-1 px-2" id="brakeFeel-initial-speed">-</td>
+                            </tr>
+                            <tr>
+                                <td class="py-1 px-2 font-medium">Speed after Braking:</td>
+                                <td class="py-1 px-2" id="brakeFeel-final-speed">-</td>
+                            </tr>
+                            <tr>
+                                <td class="py-1 px-2 font-medium">Speed Reduction (%):</td>
+                                <td class="py-1 px-2" id="brakeFeel-speed-reduction">-</td>
+                            </tr>
+                            <tr>
+                                <td class="py-1 px-2 font-medium">Brakes Effective:</td>
+                                <td class="py-1 px-2" id="brakeFeel-effective"><span class="font-bold text-green-700">-</span></td>
+                            </tr>
+                            <tr>
+                                <td class="py-1 px-2 font-medium">Distance Covered:</td>
+                                <td class="py-1 px-2" id="brakeFeel-distance">-</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div> 
+            </div>
+
+            <div class="chart-section" id="full-run-profile-section">
+                <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-2 md:mb-4">3. Full Run Speed
                     Profile</h2>
+                <div class="mb-3 flex gap-2 justify-center no-print">
+                    <button id="zoom-in-btn" class="px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors" title="Zoom In">🔍+ Zoom In</button>
+                    <button id="zoom-out-btn" class="px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors" title="Zoom Out">🔍- Zoom Out</button>
+                    <button id="zoom-reset-btn" class="px-3 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors" title="Reset Zoom">↺ Reset</button>
+                </div>
                 <div class="relative mb-8 h-[300px]"><canvas id="speedChart" class="chart-a4"></canvas></div>
             </div>
 
@@ -1244,128 +1490,6 @@
                         </tbody>
                     </table>
                 </div>
-            </div>
-
-            <div id="violations-container" class="chart-section hidden">
-                <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-2 md:mb-4">2. Speed Violations
-                    Detected</h2>
-                <p class="text-center text-xs md:text-sm text-gray-500 mb-4 no-print">Tap row to view graph.</p>
-                <div class="table-container relative shadow-md sm:rounded-lg">
-                    <table class="w-full text-sm text-left text-gray-500 whitespace-nowrap data-table">
-                        <thead class="text-xs text-gray-700 uppercase bg-gray-50">
-                            <tr>
-                                <th class="py-1 px-1">OHE Masts</th>
-                                <th class="py-1 px-1">Max Speed</th>
-                                <th class="py-1 px-1">Permitted</th>
-                                <th class="py-1 px-1">Duration (s)</th>
-                                <th class="py-1 px-1">Distance (m)</th>
-                                <th class="py-1 px-1">Breach Time</th>
-                            </tr>
-                        </thead>
-                        <tbody id="violations-table-body"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div id="magnified-chart-container" class="chart-section hidden">
-                <h2 class="text-lg md:text-xl font-bold text-gray-800 text-center mb-2 md:mb-4">Detailed View</h2>
-                <div class="relative h-64 md:h-96"><canvas id="magnifiedSpeedChart"></canvas></div>
-                <div class="mt-4 text-center no-print"><button id="reset-zoom"
-                        class="w-full md:w-auto px-4 py-3 md:py-2 bg-gray-200 text-gray-700 font-medium rounded-lg shadow-sm hover:bg-gray-300">Close
-                        Detail View</button></div>
-            </div>
-
-            <div class="chart-section">
-                <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-4">
-                    3. First 30 Minutes
-                </h2>
-
-                <div class="relative mb-8 h-[300px]">
-                    <canvas id="first30MinChart" class="chart-a4"></canvas>
-                </div>
-
-                <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-6 hidden">
-                    Brake Feel Test Analysis
-                </h3>
-                <div class="relative mb-8 h-[300px] hidden">
-                    <canvas id="brakeFeel600Chart" class="chart-a4"></canvas>
-                </div>
-
-                <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-6 hidden">
-                    Brake Power Test Analysis
-                </h3>
-
-                <div class="relative mb-8 h-[300px] hidden">
-                    <canvas id="brakePowerChart" class="chart-a4"></canvas>
-                </div>
-
-                <div id="brakePower-analysis-info" class="p-4 bg-blue-50 rounded-lg mb-4 hidden">
-                    <h4 class="text-sm font-semibold text-blue-900 mb-2">Brake Power Test Analysis Summary</h4>
-                    <table class="w-full text-sm text-left text-blue-800">
-                        <tbody>
-                            <tr>
-                                <td class="py-1 px-2 font-medium">Initial Speed Attained:</td>
-                                <td class="py-1 px-2" id="brakePower-initial-speed">-</td>
-                            </tr>
-                            <tr>
-                                <td class="py-1 px-2 font-medium">Speed after Braking:</td>
-                                <td class="py-1 px-2" id="brakePower-final-speed">-</td>
-                            </tr>
-                            <tr>
-                                <td class="py-1 px-2 font-medium">Speed Reduction (%):</td>
-                                <td class="py-1 px-2" id="brakePower-speed-reduction">-</td>
-                            </tr>
-                            <tr>
-                                <td class="py-1 px-2 font-medium">Brakes Effective:</td>
-                                <td class="py-1 px-2" id="brakePower-effective"><span class="font-bold text-green-700">-</span></td>
-                            </tr>
-                            <tr>
-                                <td class="py-1 px-2 font-medium">Distance Covered:</td>
-                                <td class="py-1 px-2" id="brakePower-distance">-</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-2">
-                    Brake Feel and Brake Power Tests Details
-                </h3>
-
-                <div class="table-container relative shadow-md sm:rounded-lg mt-2">
-                    <table class="w-full text-sm text-left text-black-500 data-table">
-                        <tbody>
-                            <tr>
-                                <td class="py-1 px-1 font-medium text-black-700">
-                                    Brake Feel Test
-                                </td>
-                                <td class="py-1 px-1">
-                                    <input type="text" name="brake_feel" placeholder="Enter result"
-                                        class="w-full border rounded px-2 py-1 text-sm" />
-                                </td>
-                            </tr>
-
-                            <tr>
-                                <td class="py-1 px-1 font-medium text-black-700">
-                                    Brake Power Test
-                                </td>
-                                <td class="py-1 px-1">
-                                    <input type="text" name="brake_power" placeholder="Enter result"
-                                        class="w-full border rounded px-2 py-1 text-sm" />
-                                </td>
-                            </tr>
-
-                            <tr>
-                                <td class="py-1 px-1 font-medium text-black-700">
-                                    Remarks (if any)
-                                </td>
-                                <td class="py-1 px-1">
-                                    <input type="text" name="remarks" placeholder="Optional remarks"
-                                        class="w-full border rounded px-2 py-1 text-sm" />
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
 
                 <div class="relative border p-4 h-[160px]">
                     <!-- other content -->
@@ -1390,40 +1514,12 @@
 
                     </div>
                 </div>
-
-                <div id="brakeFeel-analysis-info" class="p-4 bg-blue-50 rounded-lg mb-4 hidden">
-                    <h4 class="text-sm font-semibold text-blue-900 mb-2">Brake Feel Test Analysis Summary</h4>
-                    <table class="w-full text-sm text-left text-blue-800">
-                        <tbody>
-                            <tr>
-                                <td class="py-1 px-2 font-medium">Initial Speed Attained:</td>
-                                <td class="py-1 px-2" id="brakeFeel-initial-speed">-</td>
-                            </tr>
-                            <tr>
-                                <td class="py-1 px-2 font-medium">Speed after Braking:</td>
-                                <td class="py-1 px-2" id="brakeFeel-final-speed">-</td>
-                            </tr>
-                            <tr>
-                                <td class="py-1 px-2 font-medium">Speed Reduction (%):</td>
-                                <td class="py-1 px-2" id="brakeFeel-speed-reduction">-</td>
-                            </tr>
-                            <tr>
-                                <td class="py-1 px-2 font-medium">Brakes Effective:</td>
-                                <td class="py-1 px-2" id="brakeFeel-effective"><span class="font-bold text-green-700">-</span></td>
-                            </tr>
-                            <tr>
-                                <td class="py-1 px-2 font-medium">Distance Covered:</td>
-                                <td class="py-1 px-2" id="brakeFeel-distance">-</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div> 
             </div>
 
             <div class="page-break"></div>
             <div class="chart-section" id="braking-pattern-section">
                 <div class="flex justify-between items-center mb-2 md:mb-4 gap-2">
-                    <h2 class="text-lg md:text-2xl font-bold text-black-800 text-center flex-1">4. Braking Pattern Analysis</h2>
+                    <h2 class="text-lg md:text-2xl font-bold text-black-800 text-center flex-1">4. Braking Pattern Analysis & Home Signals</h2>
                     <button id="print-brake-analysis" class="print-brake-analysis no-print px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg shadow-md hover:bg-blue-700 transition-colors" title="Print Braking Analysis">Print</button>
                     <button id="toggle-all-brake-legends" class="toggle-all-legends no-print" title="Toggle all legends">Toggle All</button>
                 </div>
@@ -1564,7 +1660,7 @@
                 </div>
                 <div class="page-break"></div>
                 <div id="braking-exceptions-container" class="mt-8 hidden">
-                    <h3 class="text-base md:text-xl font-bold text-black-800 text-center mb-4">Braking Exceptions</h3>
+                    <h3 class="text-base md:text-xl font-bold text-black-800 text-center mb-4">5. Braking Exceptions</h3>
                     <div class="table-container relative shadow-md sm:rounded-lg">
                         <table class="w-full text-sm text-left text-black-500 whitespace-nowrap data-table">
                             <thead class="text-xs text-black-700 uppercase bg-gray-50">
@@ -1573,6 +1669,7 @@
                                     <th class="py-1 px-1">Location</th>
                                     <th class="py-1 px-1">Actual</th>
                                     <th class="py-1 px-1">Standard</th>
+                                    <th class="py-1 px-1">Distance to Stop</th>
                                     <th class="py-1 px-1">Time</th>
                                 </tr>
                             </thead>
@@ -1583,7 +1680,7 @@
             </div>
 
             <div id="signal-analysis-container" class="chart-section hidden">
-                <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-2 md:mb-4">5. Signal Analysis</h2>
+                <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-2 md:mb-4">6. Signal Analysis</h2>
                 <div class="table-container relative shadow-md sm:rounded-lg">
                     <table class="w-full text-sm text-left text-gray-500 whitespace-nowrap data-table">
                         <thead class="text-xs text-gray-700 uppercase bg-gray-50">
@@ -1600,7 +1697,7 @@
             </div>
 
             <div id="sya-analysis-container" class="chart-section hidden">
-                <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-2 md:mb-4">6. SYA Events</h2>
+                <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-2 md:mb-4">7. SYA Events</h2>
                 <div class="table-container relative shadow-md sm:rounded-lg">
                     <table class="w-full text-sm text-left text-gray-500 whitespace-nowrap data-table">
                         <thead class="text-xs text-gray-700 uppercase bg-gray-50">
@@ -1616,7 +1713,7 @@
             </div>
 
             <div id="bulk-match-container" class="chart-section hidden">
-                <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-2 md:mb-4">7. Bulk Matches</h2>
+                <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-2 md:mb-4">8. Bulk Matches</h2>
                 <p class="text-center text-xs md:text-sm text-gray-500 mb-4">Matched by Device ID, Station, and Signal
                     Time.</p>
                 <div class="table-container relative shadow-md sm:rounded-lg">
@@ -1942,6 +2039,41 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
             closeMessage.addEventListener('click', () => messageBox.classList.add('hidden'));
             resetZoomButton.addEventListener('click', () => magnifiedChartContainer.classList.add('hidden'));
             printReportButton.addEventListener('click', () => window.print());
+
+            // Zoom buttons for Full Run Profile chart
+            const zoomInBtn = document.getElementById('zoom-in-btn');
+            const zoomOutBtn = document.getElementById('zoom-out-btn');
+            const zoomResetBtn = document.getElementById('zoom-reset-btn');
+
+            if (zoomInBtn && zoomOutBtn && zoomResetBtn) {
+                zoomInBtn.addEventListener('click', () => {
+                    if (speedChart) speedChart.zoom(1.2);
+                });
+                zoomOutBtn.addEventListener('click', () => {
+                    if (speedChart) speedChart.zoom(0.8);
+                });
+                zoomResetBtn.addEventListener('click', () => {
+                    if (speedChart) speedChart.resetZoom();
+                });
+            }
+
+            // Zoom buttons for First 30 Minutes chart
+            const zoomInBtnFirst30 = document.getElementById('zoom-in-btn-first30');
+            const zoomOutBtnFirst30 = document.getElementById('zoom-out-btn-first30');
+            const zoomResetBtnFirst30 = document.getElementById('zoom-reset-btn-first30');
+
+            if (zoomInBtnFirst30 && zoomOutBtnFirst30 && zoomResetBtnFirst30) {
+                zoomInBtnFirst30.addEventListener('click', () => {
+                    if (first30MinChart) first30MinChart.zoom(1.2);
+                });
+                zoomOutBtnFirst30.addEventListener('click', () => {
+                    if (first30MinChart) first30MinChart.zoom(0.8);
+                });
+                zoomResetBtnFirst30.addEventListener('click', () => {
+                    if (first30MinChart) first30MinChart.resetZoom();
+                });
+            }
+
             const printBrakeBtn = document.getElementById('print-brake-analysis');
             if (printBrakeBtn) {
                 printBrakeBtn.addEventListener('click', printBrakeAnalysis);
@@ -3139,8 +3271,8 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                 return new Chart(chartCanvas.getContext('2d'), chartConfig);
             }
 
-            function getChartOptions(titleText, xLabel, yLabel) {
-                return {
+            function getChartOptions(titleText, xLabel, yLabel, enableZoom = false) {
+                const options = {
                     responsive: true, maintainAspectRatio: false,
                     plugins: {
                         title: { display: !!titleText, text: titleText, font: { size: 16 } },
@@ -3151,6 +3283,27 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                         y: { title: { display: true, text: yLabel }, beginAtZero: true, suggestedMax: 140 }
                     }
                 };
+
+                if (enableZoom) {
+                    options.plugins.zoom = {
+                        zoom: {
+                            wheel: {
+                                enabled: true,
+                                speed: 0.1
+                            },
+                            pinch: {
+                                enabled: true
+                            },
+                            mode: 'xy'
+                        },
+                        pan: {
+                            enabled: true,
+                            mode: 'xy'
+                        }
+                    };
+                }
+
+                return options;
             }
 
             function plotFullChart(fullAnalysis) {
@@ -3180,7 +3333,7 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                 }
 
                 const data = { labels: allLabels, datasets };
-                const options = getChartOptions(null, 'Time', 'Speed (KMPH)');
+                const options = getChartOptions(null, 'Time', 'Speed (KMPH)', true);
                 options.plugins.legend.display = fullAnalysis || (syaAnalysis && syaPlotData && syaPlotData.some(v => v !== null));
                 options.scales.x.type = 'category';
                 speedChart = plotChart('speedChart', data, options);
@@ -3219,7 +3372,7 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                     labels: allLabels.slice(0, endIndex),
                     datasets
                 };
-                const options = getChartOptions(null, 'Time', 'Speed (KMPH)');
+                const options = getChartOptions(null, 'Time', 'Speed (KMPH)', true);
                 options.plugins.legend.display = fullAnalysis || (syaAnalysis && syaPlotData && syaPlotData.slice(0, endIndex).some(v => v !== null));
                 options.scales.x.type = 'category';
                 first30MinChart = plotChart('first30MinChart', data, options);
@@ -3243,7 +3396,6 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                     <div class="page-break"></div>
                     <div id="${graphId}" class="mb-8 border-2 border-gray-300 rounded-lg p-4" style="min-height: 600px;">
                         <div class="flex justify-between items-center mb-2 md:mb-4 gap-2">
-                            <h3 class="text-base md:text-lg font-bold text-black-800 flex-1 text-center">Braking Pattern Analysis - Copy ${brakeGraphCounter}</h3>
                             <button id="${toggleBtnId}" class="toggle-all-legends no-print" title="Toggle all legends">Toggle All</button>
                             <button id="${removeBtnId}" class="no-print px-3 py-2 bg-red-600 text-white text-sm font-medium rounded-lg shadow-md hover:bg-red-700 transition-colors" title="Remove this graph">🗑️ Remove</button>
                         </div>
@@ -3790,15 +3942,22 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
 
             function displayBrakingExceptions() {
                 brakingExceptionsTableBody.innerHTML = '';
-                if (brakingExceptions.length === 0) {
+                
+                // Filter exceptions to only show those within 100 meters of stop signal
+                const filteredExceptions = brakingExceptions.filter(ex => {
+                    return ex.distanceToStop !== undefined && ex.distanceToStop <= 100;
+                });
+                
+                if (filteredExceptions.length === 0) {
                     brakingExceptionsContainer.classList.add('hidden');
                     return;
                 }
                 brakingExceptionsContainer.classList.remove('hidden');
-                brakingExceptions.forEach(ex => {
+                filteredExceptions.forEach(ex => {
                     const row = brakingExceptionsTableBody.insertRow();
                     row.className = 'bg-white border-b';
-                    row.innerHTML = `<td class="py-1 px-3">${ex.station}</td><td class="py-1 px-3">${ex.location}</td><td class="py-1 px-3 text-red-600 font-bold">${ex.actualSpeed.toFixed(1)}</td><td class="py-1 px-3">${ex.standardSpeed}</td><td class="py-1 px-3">${ex.time}</td>`;
+                    const distanceDisplay = ex.distanceToStop !== undefined ? ex.distanceToStop.toFixed(1) : 'N/A';
+                    row.innerHTML = `<td class="py-1 px-3">${ex.station}</td><td class="py-1 px-3">${ex.location}</td><td class="py-1 px-3 text-red-600 font-bold">${ex.actualSpeed.toFixed(1)}</td><td class="py-1 px-3">${ex.standardSpeed}</td><td class="py-1 px-3">${distanceDisplay}m</td><td class="py-1 px-3">${ex.time}</td>`;
                 });
             }
 
@@ -4104,6 +4263,7 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                         // Note: Starter signal will be added as a common dataset at x=0, not individually
 
                         // Second pass: plot data using cumulative distance
+                        let recorded100mException = false;
                         for (let i = stop.endIndex - 1; i >= 0; i--) {
                             const currentLoc = allLocations[i];
                             if (isNaN(currentLoc.time.getTime())) continue;
@@ -4113,17 +4273,24 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
 
                             if (distanceToStop > 3100) break;
 
+                            // Check for braking exceptions within 100m zone
+                            if (distanceToStop <= 100 && !recorded100mException) {
+                                // Record exception if speed exceeds 10 KMPH within 100m zone
+                                if (currentLoc.speed > 10) {
+                                    brakingExceptions.push({
+                                        station: stop.station,
+                                        location: 'Sigma Board (100m before stopping)',
+                                        actualSpeed: currentLoc.speed,
+                                        standardSpeed: 10,
+                                        time: formatTime(currentLoc.time),
+                                        distanceToStop: distanceToStop
+                                    });
+                                    recorded100mException = true;
+                                }
+                            }
+
                             brakingCheckpoints.forEach(cp => {
                                 if (!checkedPoints.has(cp.name) && distanceToStop >= cp.distance) {
-                                    if (currentLoc.speed > cp.speed) {
-                                        brakingExceptions.push({
-                                            station: stop.station,
-                                            location: cp.name,
-                                            actualSpeed: currentLoc.speed,
-                                            standardSpeed: cp.speed,
-                                            time: formatTime(currentLoc.time)
-                                        });
-                                    }
                                     checkedPoints.add(cp.name);
                                 }
                             });
