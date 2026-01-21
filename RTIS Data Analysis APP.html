@@ -350,6 +350,29 @@
             border-color: #10b981;
         }
 
+        .print-orientation-btn {
+            cursor: pointer;
+            transition: background-color 0.2s;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border: 1px solid #d1d5db;
+            background-color: #f3f4f6;
+            color: #374151;
+        }
+
+        .print-orientation-btn:hover {
+            background-color: #9ca3af;
+            color: white;
+        }
+
+        .print-orientation-btn.active {
+            background-color: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+
         /* Horizontal scroll for tables on mobile */
         .table-container {
             overflow-x: auto;
@@ -694,11 +717,6 @@
         }
 
         @media print {
-            @page {
-                size: A4;
-                margin: 0.3cm;
-            }
-
             body {
                 background-color: #ffffff;
                 margin: 0;
@@ -707,22 +725,37 @@
             }
 
             #main-container {
-                padding: 0.3cm !important;
+                padding: 0.2cm !important;
                 margin: 0 !important;
                 border-radius: 0 !important;
                 box-shadow: none !important;
+                width: 100% !important;
+            }
+
+            /* Landscape adjustments */
+            @page {
+                size: A4 portrait;
+                margin: 0.15cm;
+            }
+
+            body.print-landscape {
+                width: 100% !important;
+            }
+
+            body.print-landscape #main-container {
+                padding: 0.2cm !important;
             }
 
             h1 {
-                font-size: 1rem !important;
-                margin: 0.05cm 0 !important;
-                line-height: 1.1 !important;
+                font-size: 0.9rem !important;
+                margin: 0.02cm 0 !important;
+                line-height: 1 !important;
             }
 
             h2 {
-                font-size: 0.95rem !important;
-                margin: 0.1cm 0 !important;
-                line-height: 1.1 !important;
+                font-size: 0.85rem !important;
+                margin: 0.05cm 0 !important;
+                line-height: 1 !important;
             }
 
             p:first-of-type {
@@ -735,31 +768,32 @@
 
             #trip-details-section {
                 display: block !important;
-                padding: 0.25rem 0.4rem !important;
+                padding: 0.15rem 0.3rem !important;
                 margin: 0 !important;
-                margin-bottom: 0.15rem !important;
-                border-left: 2px solid #818cf8 !important;
+                margin-bottom: 0.1rem !important;
+                border-left: 1px solid #818cf8 !important;
                 background-color: #f0f4ff !important;
-                page-break-after: avoid !important;
+                page-break-after: auto !important;
             }
 
             #trip-details-section h3 {
-                font-size: 0.85rem !important;
-                margin: 0 0 0.15rem 0 !important;
+                font-size: 0.75rem !important;
+                margin: 0 0 0.1rem 0 !important;
                 font-weight: 700 !important;
+                line-height: 1 !important;
             }
 
             #trip-details-content {
                 display: grid !important;
                 grid-template-columns: 1fr 1fr !important;
-                gap: 0.2rem !important;
-                font-size: 0.65rem !important;
+                gap: 0.1rem !important;
+                font-size: 0.6rem !important;
             }
 
             #trip-details-content > div {
                 margin: 0 !important;
-                padding: 0.15rem !important;
-                line-height: 1.2 !important;
+                padding: 0.1rem !important;
+                line-height: 1.1 !important;
             }
 
             .chart-section#first30-section {
@@ -799,7 +833,15 @@
             }
 
             .chart-a4 {
-                height: 200px !important;
+                height: 250px !important;
+            }
+
+            #stoppingAnalysisChart {
+                height: 330px !important;
+            }
+
+            #braking-pattern-section .relative.mb-8 {
+                height: 330px !important;
             }
 
             #first30-section .relative.mb-8 {
@@ -1109,9 +1151,13 @@
 
         <div id="output-sections" class="hidden space-y-6 md:space-y-8 pb-10">
             <div class="text-center no-print">
-                <button id="print-report"
-                    class="w-full md:w-auto px-8 py-3 bg-green-600 text-white text-lg font-bold rounded-xl shadow-lg hover:bg-green-700 transition-colors">Print
-                    Report</button>
+                <div class="flex gap-2 justify-center items-center mb-4 flex-wrap">
+                    <button id="print-report-portrait" class="print-orientation-btn px-3 py-2 bg-gray-400 text-white text-sm font-medium rounded-lg shadow-md hover:bg-gray-500 transition-colors" title="Print in Portrait Mode" data-orientation="portrait">Portrait</button>
+                    <button id="print-report-landscape" class="print-orientation-btn px-3 py-2 bg-gray-400 text-white text-sm font-medium rounded-lg shadow-md hover:bg-gray-500 transition-colors" title="Print in Landscape Mode" data-orientation="landscape">Landscape</button>
+                    <button id="print-report"
+                        class="w-full md:w-auto px-8 py-3 bg-green-600 text-white text-lg font-bold rounded-xl shadow-lg hover:bg-green-700 transition-colors">Print
+                        Report</button>
+                </div>
             </div>
 
             <div id="violations-container" class="chart-section hidden">
@@ -1520,9 +1566,13 @@
 
             <div class="page-break"></div>
             <div class="chart-section" id="braking-pattern-section">
-                <div class="flex justify-between items-center mb-2 md:mb-4 gap-2">
+                <div class="flex justify-between items-center mb-2 md:mb-4 gap-2 flex-wrap">
                     <h2 class="text-lg md:text-2xl font-bold text-black-800 text-center flex-1">4. Braking Pattern Analysis & Home Signals</h2>
-                    <button id="print-brake-analysis" class="print-brake-analysis no-print px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg shadow-md hover:bg-blue-700 transition-colors" title="Print Braking Analysis">Print</button>
+                    <div class="flex gap-2 items-center no-print">
+                        <button id="print-orientation-portrait" class="print-orientation-btn px-3 py-2 bg-gray-400 text-white text-sm font-medium rounded-lg shadow-md hover:bg-gray-500 transition-colors" title="Print in Portrait Mode" data-orientation="portrait">Portrait</button>
+                        <button id="print-orientation-landscape" class="print-orientation-btn px-3 py-2 bg-gray-400 text-white text-sm font-medium rounded-lg shadow-md hover:bg-gray-500 transition-colors" title="Print in Landscape Mode" data-orientation="landscape">Landscape</button>
+                        <button id="print-brake-analysis" class="print-brake-analysis px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg shadow-md hover:bg-blue-700 transition-colors" title="Print Braking Analysis">Print</button>
+                    </div>
                     <button id="toggle-all-brake-legends" class="toggle-all-legends no-print" title="Toggle all legends">Toggle All</button>
                 </div>
                 <div id="stoppage-legend"
@@ -2050,6 +2100,63 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
             resetZoomButton.addEventListener('click', () => magnifiedChartContainer.classList.add('hidden'));
             printReportButton.addEventListener('click', () => window.print());
 
+            // Main report print orientation buttons
+            const printReportPortraitBtn = document.getElementById('print-report-portrait');
+            const printReportLandscapeBtn = document.getElementById('print-report-landscape');
+
+            // Create a separate style element for main report orientation
+            const mainReportOrientationStyle = document.createElement('style');
+            mainReportOrientationStyle.id = 'main-report-orientation-style';
+            mainReportOrientationStyle.innerHTML = `
+                @media print {
+                    @page {
+                        size: A4 portrait;
+                        margin: 0.3cm;
+                    }
+                }
+            `;
+            document.head.appendChild(mainReportOrientationStyle);
+
+            function updateMainReportPageOrientation(isLandscape) {
+                if (isLandscape) {
+                    mainReportOrientationStyle.innerHTML = `
+                        @media print {
+                            @page {
+                                size: A4 landscape;
+                                margin: 0.3cm;
+                            }
+                        }
+                    `;
+                } else {
+                    mainReportOrientationStyle.innerHTML = `
+                        @media print {
+                            @page {
+                                size: A4 portrait;
+                                margin: 0.3cm;
+                            }
+                        }
+                    `;
+                }
+            }
+
+            // Set portrait as default active for main report
+            if (printReportPortraitBtn) {
+                printReportPortraitBtn.classList.add('active');
+                printReportPortraitBtn.addEventListener('click', () => {
+                    updateMainReportPageOrientation(false);
+                    printReportPortraitBtn.classList.add('active');
+                    printReportLandscapeBtn.classList.remove('active');
+                });
+            }
+
+            if (printReportLandscapeBtn) {
+                printReportLandscapeBtn.addEventListener('click', () => {
+                    updateMainReportPageOrientation(true);
+                    printReportLandscapeBtn.classList.add('active');
+                    printReportPortraitBtn.classList.remove('active');
+                });
+            }
+
             // Zoom buttons for Full Run Profile chart
             const zoomInBtn = document.getElementById('zoom-in-btn');
             const zoomOutBtn = document.getElementById('zoom-out-btn');
@@ -2088,6 +2195,56 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
             if (printBrakeBtn) {
                 printBrakeBtn.addEventListener('click', printBrakeAnalysis);
             }
+
+            // Print orientation buttons for Brake Analysis
+            const portraitBtn = document.getElementById('print-orientation-portrait');
+            const landscapeBtn = document.getElementById('print-orientation-landscape');
+
+            // Create a style element for landscape printing that can be dynamically updated
+            const orientationStyle = document.createElement('style');
+            orientationStyle.id = 'orientation-style';
+            document.head.appendChild(orientationStyle);
+
+            function updateBrakePageOrientation(isLandscape) {
+                if (isLandscape) {
+                    orientationStyle.innerHTML = `
+                        @media print {
+                            @page {
+                                size: A4 landscape;
+                                margin: 0.3cm;
+                            }
+                        }
+                    `;
+                } else {
+                    orientationStyle.innerHTML = `
+                        @media print {
+                            @page {
+                                size: A4 portrait;
+                                margin: 0.3cm;
+                            }
+                        }
+                    `;
+                }
+            }
+
+            // Set portrait as default active
+            if (portraitBtn) {
+                portraitBtn.classList.add('active');
+                portraitBtn.addEventListener('click', () => {
+                    updateBrakePageOrientation(false);
+                    portraitBtn.classList.add('active');
+                    landscapeBtn.classList.remove('active');
+                });
+            }
+
+            if (landscapeBtn) {
+                landscapeBtn.addEventListener('click', () => {
+                    updateBrakePageOrientation(true);
+                    landscapeBtn.classList.add('active');
+                    portraitBtn.classList.remove('active');
+                });
+            }
+
             const populateSpeedAnalysisBtn = document.getElementById('populate-speed-analysis');
             if (populateSpeedAnalysisBtn) {
                 populateSpeedAnalysisBtn.addEventListener('click', populateSpeedAnalysisTable);
@@ -2185,7 +2342,9 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                     newRow.innerHTML = `
                         <td><textarea style="text-align: center;">${i}</textarea></td>
                         <td><textarea style="text-align: center;">${selectedStations[i]}</textarea></td>
+                        <td><textarea style="text-align: center;">YY</textarea></td>
                         <td><textarea style="text-align: center;"></textarea></td>
+                        <td><textarea style="text-align: center;">Y</textarea></td>
                         <td><textarea style="text-align: center;"></textarea></td>
                         <td><textarea style="text-align: center;">NA</textarea></td>
                         <td><textarea style="text-align: center;">NIL</textarea></td>
