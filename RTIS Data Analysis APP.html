@@ -1276,26 +1276,26 @@
             </div>
 
             <div class="chart-section">
-                <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-4" hidden>
+                <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-4">
                     3. First 30 Minutes
                 </h2>
 
-                <div class="relative mb-8 h-[300px] hidden">
+                <div class="relative mb-8 h-[300px]">
                     <canvas id="first30MinChart" class="chart-a4"></canvas>
                 </div>
 
-                <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-6">
+                <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-6 hidden">
                     Brake Feel Test Analysis
                 </h3>
-                <div class="relative mb-8 h-[300px]">
+                <div class="relative mb-8 h-[300px] hidden">
                     <canvas id="brakeFeel600Chart" class="chart-a4"></canvas>
                 </div>
 
-                <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-6">
+                <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-6 hidden">
                     Brake Power Test Analysis
                 </h3>
 
-                <div class="relative mb-8 h-[300px]">
+                <div class="relative mb-8 h-[300px] hidden">
                     <canvas id="brakePowerChart" class="chart-a4"></canvas>
                 </div>
 
@@ -1444,6 +1444,17 @@
                     </div>
                     <canvas id="homeSignalsAnalysisChart" class="chart-a4"></canvas>
                 </div>
+
+                <!-- Add Graph Button -->
+                <div class="text-center mb-4 no-print">
+                    <button id="add-brake-graph-btn" class="px-6 py-3 bg-green-600 text-white text-base font-semibold rounded-lg shadow-md hover:bg-green-700 transition-colors" title="Add a new braking pattern graph">
+                        ➕ Add Graph
+                    </button>
+                </div>
+
+                <!-- Container for Additional Brake Pattern Graphs -->
+                <div id="additional-brake-graphs-container"></div>
+
                 <!-- <h3 class="text-base md:text-xl font-bold text-black-800 text-center mb-4 mt-1">
                     Speed Analysis before Stop
                 </h3> -->
@@ -1455,20 +1466,28 @@
                         <input type="text" class="field-input" id="commonDate" placeholder="DD/MM/YYYY">
                     </div>
                     <div class="field-group">
-                        <label class="field-label">Train No</label>
-                        <input type="text" class="field-input" id="commonTrainNo" placeholder="Train Number">
-                    </div>
-                    <div class="field-group">
                         <label class="field-label">Name of LP</label>
                         <input type="text" class="field-input" id="commonLPName" placeholder="Loco Pilot Name">
+                    </div>
+                    <div class="field-group">
+                        <label class="field-label">Name of NLI</label>
+                        <input type="text" class="field-input" id="commonNLI" placeholder="NLI Name">
+                    </div>
+                    <div class="field-group">
+                        <label class="field-label">Train No</label>
+                        <input type="text" class="field-input" id="commonTrainNo" placeholder="Train Number">
                     </div>
                     <div class="field-group">
                         <label class="field-label">Load</label>
                         <input type="text" class="field-input" id="commonLoad" placeholder="Load">
                     </div>
                     <div class="field-group">
-                        <label class="field-label">Name of NLI</label>
-                        <input type="text" class="field-input" id="commonNLI" placeholder="NLI Name">
+                        <label class="field-label">Section</label>
+                        <input type="text" class="field-input" id="commonSection" placeholder="Section">
+                    </div>
+                    <div class="field-group">
+                        <label class="field-label">Loco No</label>
+                        <input type="text" class="field-input" id="commonLocoNo" placeholder="Loco No">
                     </div>
                 </div>
 
@@ -1644,6 +1663,11 @@
             let allLocations, speedChart, first30MinChart, magnifiedSpeedChart, stoppingAnalysisChart, homeSignalsAnalysisChart, brakeFeel600Chart, brakePowerChart;
             let speedViolations = [], brakingExceptions = [], allLabels = [], allSpeedData = [], allMaxSpeedData = [], allTimestamps = [], signalEvents = [], syaMatchEvents = [], syaPlotData = [], bulkMatchEvents = [];
             let stoppingAnalysisStops = [], homeSignalsStops = [];
+            
+            // Store additional brake pattern graph instances
+            let additionalBrakeCharts = [];
+            let brakeGraphCounter = 0;
+            let brakeChartDataCache = null;
             
             // Route data for signal filtering
             let routeData = [];
@@ -1926,6 +1950,13 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
             if (populateSpeedAnalysisBtn) {
                 populateSpeedAnalysisBtn.addEventListener('click', populateSpeedAnalysisTable);
             }
+            
+            // Add Graph button for brake pattern analysis
+            const addBrakeGraphBtn = document.getElementById('add-brake-graph-btn');
+            if (addBrakeGraphBtn) {
+                addBrakeGraphBtn.addEventListener('click', createAdditionalBrakeGraph);
+            }
+            
             runAnalysisBtn.addEventListener('click', runAnalysis);
 
             // Auto-format time inputs to HH:MM:SS
@@ -2352,30 +2383,19 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                 tripDetailsContent.innerHTML = '';
 
                 Object.entries(details).forEach(([key, value]) => {
-
-                    // 👇 Render input for Departure & Arrival
-                    if (key !== 'Train No.' && key !== 'Loco No.') {
-                        tripDetailsContent.innerHTML += `
+                    // 👇 Render input for all fields (now including Train No. and Loco No.)
+                    tripDetailsContent.innerHTML += `
                 <div class="flex flex-col gap-0.5">
                     <label class="font-semibold text-gray-700 text-xs">${key}:</label>
                     <input
                         type="text"
-                        id="${key.toLowerCase()}Input"
+                        id="${key.toLowerCase().replace(/\./g, '').replace(/\s/g, '-')}Input"
+                        value="${value || ''}"
                         placeholder="Enter ${key}"
                         class="w-full rounded-md px-2 py-1.5 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs"
                     />
                 </div>
             `;
-                    }
-                    // 👇 Normal display for other fields
-                    else {
-                        tripDetailsContent.innerHTML += `
-                <div class="flex flex-col gap-0.5">
-                    <span class="font-semibold text-gray-700 text-xs">${key}:</span>
-                    <div class="text-gray-600 px-2 py-1.5 bg-white rounded-md border border-gray-200 text-xs">${value || 'N/A'}</div>
-                </div>
-            `;
-                    }
                 });
 
                 tripDetailsSection.classList.remove('hidden');
@@ -3205,6 +3225,230 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                 first30MinChart = plotChart('first30MinChart', data, options);
             }
 
+            function createAdditionalBrakeGraph() {
+                if (!brakeChartDataCache) {
+                    showMessage("Error", "No brake pattern data available. Please run analysis first.");
+                    return;
+                }
+
+                brakeGraphCounter++;
+                const graphId = `brake-graph-${brakeGraphCounter}`;
+                const canvasId = `brakeChart-${brakeGraphCounter}`;
+                const legendId = `brake-legend-${brakeGraphCounter}`;
+                const toggleBtnId = `toggle-all-brake-${brakeGraphCounter}`;
+                const removeBtnId = `remove-brake-${brakeGraphCounter}`;
+
+                // Create the graph container HTML
+                const graphHTML = `
+                    <div class="page-break"></div>
+                    <div id="${graphId}" class="mb-8 border-2 border-gray-300 rounded-lg p-4" style="min-height: 600px;">
+                        <div class="flex justify-between items-center mb-2 md:mb-4 gap-2">
+                            <h3 class="text-base md:text-lg font-bold text-black-800 flex-1 text-center">Braking Pattern Analysis - Copy ${brakeGraphCounter}</h3>
+                            <button id="${toggleBtnId}" class="toggle-all-legends no-print" title="Toggle all legends">Toggle All</button>
+                            <button id="${removeBtnId}" class="no-print px-3 py-2 bg-red-600 text-white text-sm font-medium rounded-lg shadow-md hover:bg-red-700 transition-colors" title="Remove this graph">🗑️ Remove</button>
+                        </div>
+                        <div id="${legendId}"
+                            class="text-center text-xs md:text-sm text-black-600 mb-4 p-2 flex flex-wrap justify-center gap-2">
+                        </div>
+                        <div class="relative mb-8" style="height: 500px;">
+                            <canvas id="${canvasId}" class="chart-a4"></canvas>
+                        </div>
+                    </div>
+                `;
+
+                // Insert the graph into the container
+                const container = document.getElementById('additional-brake-graphs-container');
+                container.insertAdjacentHTML('beforeend', graphHTML);
+
+                // Clone the datasets from cache
+                const datasets = JSON.parse(JSON.stringify(brakeChartDataCache.datasets));
+                const options = JSON.parse(JSON.stringify(brakeChartDataCache.options));
+                
+                // Create the chart
+                const newChart = plotChart(canvasId, { datasets }, options, brakeChartDataCache.plugins);
+                
+                // Store chart instance
+                additionalBrakeCharts.push({
+                    id: graphId,
+                    chartInstance: newChart,
+                    canvasId: canvasId,
+                    legendId: legendId
+                });
+
+                // Setup legend interactivity
+                const legendContainer = document.getElementById(legendId);
+                
+                // Populate legend
+                datasets.forEach((dataset, index) => {
+                    if (!dataset.isSignalDataset && !dataset.isCommonStarterSignal) {
+                        const color = dataset.borderColor;
+                        let legendLabel = '';
+                        let signalText = '';
+                        
+                        if (dataset.signalInfo) {
+                            signalText = `${dataset.signalInfo.station} (${dataset.signalInfo.type}) ${Math.round(dataset.signalInfo.distance)}m`;
+                        }
+
+                        const legendEl = document.createElement('span');
+                        legendEl.className = 'legend-item inline-flex flex-col items-start m-1 px-2 py-0.5 rounded-full text-xs font-medium';
+                        legendEl.style.backgroundColor = `${color}20`;
+                        legendEl.style.color = color;
+                        legendEl.innerHTML = `<div class="legend-item-content"><div class="legend-item-text">${signalText}<br>${dataset.timeLabel || ''}</div><span class="legend-item-delete" title="Click to delete this dataset">✕</span></div>`;
+                        legendEl.dataset.datasetIndex = index;
+                        legendEl.title = `${signalText} - ${dataset.timeLabel || ''}`;
+                        legendContainer.appendChild(legendEl);
+
+                        // Handle click to toggle visibility
+                        legendEl.addEventListener('click', (e) => {
+                            if (e.target.classList.contains('legend-item-delete')) {
+                                e.stopPropagation();
+                                return;
+                            }
+
+                            const clickedIndex = parseInt(legendEl.dataset.datasetIndex);
+                            const clickedDataset = newChart.data.datasets[clickedIndex];
+
+                            clickedDataset.hidden = !clickedDataset.hidden;
+                            legendEl.classList.toggle('striked', clickedDataset.hidden);
+
+                            const stopIndex = clickedDataset.stopIndex;
+                            newChart.data.datasets.forEach((ds, idx) => {
+                                if (ds.isSignalDataset && ds.stopIndex === stopIndex) {
+                                    ds.hidden = clickedDataset.hidden;
+                                }
+                            });
+
+                            const allLegends = legendContainer.querySelectorAll('.legend-item');
+                            const allHidden = Array.from(allLegends).every(l => l.classList.contains('striked'));
+                            const toggleBtn = document.getElementById(toggleBtnId);
+                            if (toggleBtn) {
+                                toggleBtn.classList.toggle('active', allHidden && allLegends.length > 0);
+                            }
+
+                            newChart.update();
+                        });
+
+                        // Handle delete button
+                        const deleteBtn = legendEl.querySelector('.legend-item-delete');
+                        if (deleteBtn) {
+                            deleteBtn.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                
+                                const datasetIndex = parseInt(legendEl.dataset.datasetIndex);
+                                const stopIndex = newChart.data.datasets[datasetIndex].stopIndex;
+
+                                newChart.data.datasets.splice(datasetIndex, 1);
+
+                                for (let i = newChart.data.datasets.length - 1; i >= 0; i--) {
+                                    const ds = newChart.data.datasets[i];
+                                    if (ds.isSignalDataset && ds.stopIndex === stopIndex) {
+                                        newChart.data.datasets.splice(i, 1);
+                                    }
+                                }
+
+                                legendEl.remove();
+
+                                legendContainer.querySelectorAll('.legend-item').forEach((legendItem, idx) => {
+                                    let correctIndex = 0;
+                                    for (let i = 0; i < newChart.data.datasets.length; i++) {
+                                        if (!newChart.data.datasets[i].isSignalDataset && !newChart.data.datasets[i].isCommonStarterSignal) {
+                                            if (correctIndex === idx) {
+                                                legendItem.dataset.datasetIndex = i;
+                                                break;
+                                            }
+                                            correctIndex++;
+                                        }
+                                    }
+                                });
+
+                                const allLegends = legendContainer.querySelectorAll('.legend-item');
+                                const allHidden = Array.from(allLegends).every(l => l.classList.contains('striked'));
+                                const toggleBtn = document.getElementById(toggleBtnId);
+                                if (toggleBtn) {
+                                    toggleBtn.classList.toggle('active', allHidden && allLegends.length > 0);
+                                }
+
+                                newChart.update();
+                            });
+                        }
+                    }
+                });
+
+                // Setup toggle all button
+                const toggleAllBtn = document.getElementById(toggleBtnId);
+                if (toggleAllBtn) {
+                    toggleAllBtn.addEventListener('click', () => {
+                        const overlay = document.getElementById('page-loading-overlay');
+                        if (overlay) overlay.classList.add('active');
+
+                        setTimeout(() => {
+                            const allLegends = legendContainer.querySelectorAll('.legend-item');
+                            const isCurrentlyAllHidden = Array.from(allLegends).every(l => l.classList.contains('striked'));
+
+                            allLegends.forEach(legendItem => {
+                                const clickedIndex = parseInt(legendItem.dataset.datasetIndex);
+                                const dataset = newChart.data.datasets[clickedIndex];
+
+                                if (isCurrentlyAllHidden) {
+                                    dataset.hidden = false;
+                                    legendItem.classList.remove('striked');
+                                } else {
+                                    dataset.hidden = true;
+                                    legendItem.classList.add('striked');
+                                }
+
+                                const stopIndex = dataset.stopIndex;
+                                newChart.data.datasets.forEach((ds, idx) => {
+                                    if (ds.isSignalDataset && ds.stopIndex === stopIndex) {
+                                        ds.hidden = dataset.hidden;
+                                    }
+                                });
+                            });
+
+                            const allNowHidden = Array.from(allLegends).every(l => l.classList.contains('striked'));
+                            toggleAllBtn.classList.toggle('active', allNowHidden && allLegends.length > 0);
+
+                            newChart.update();
+
+                            if (overlay) overlay.classList.remove('active');
+                        }, 50);
+                    });
+                }
+
+                // Setup remove button
+                const removeBtn = document.getElementById(removeBtnId);
+                if (removeBtn) {
+                    removeBtn.addEventListener('click', () => {
+                        if (confirm('Are you sure you want to remove this graph?')) {
+                            // Destroy chart instance
+                            if (newChart) {
+                                newChart.destroy();
+                            }
+                            
+                            // Remove from array
+                            const index = additionalBrakeCharts.findIndex(c => c.id === graphId);
+                            if (index > -1) {
+                                additionalBrakeCharts.splice(index, 1);
+                            }
+                            
+                            // Remove DOM element
+                            const graphElement = document.getElementById(graphId);
+                            if (graphElement) {
+                                graphElement.remove();
+                            }
+                        }
+                    });
+                }
+
+                // Scroll to the new graph
+                setTimeout(() => {
+                    const newGraph = document.getElementById(graphId);
+                    if (newGraph) {
+                        newGraph.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 100);
+            }
+
             function plotBrakeFeel600Chart() {
                 // Calculate cumulative distance from start
                 let cumulativeDistance = 0;
@@ -3793,189 +4037,212 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                 const colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf', '#1a9850', '#d6604d', '#4575b4', '#181515'];
                 const datasets = [];
                 
-                stops.map((stop, index) => {
+                // Group stops by their nearest signal to ensure consistent reference point
+                const stopGroups = new Map(); // Map signal key -> {signal info, stops array}
+                
+                stops.forEach((stop, index) => {
                     const stopPoint = turf.point([allLocations[stop.endIndex].lon, allLocations[stop.endIndex].lat]);
-                    const stopData = [];
-                    let checkedPoints = new Set();
-
-                    // Calculate cumulative distance for braking curve
-                    let cumulativeDistance = 0;
-                    const distanceMap = []; // Maps index to cumulative distance
-                    
-                    // First pass: calculate cumulative distances backwards from stop
-                    for (let i = stop.endIndex - 1; i >= 0; i--) {
-                        const currentLoc = allLocations[i];
-                        // Add distance from current point to next point (towards stop) FIRST
-                        if (i < stop.endIndex - 1 && allLocations[i + 1]) {
-                            const nextDist = allLocations[i + 1].distFromPrev || 0;
-                            cumulativeDistance += nextDist;
-                        }
-                        if (isNaN(currentLoc.time.getTime())) {
-                            distanceMap[i] = cumulativeDistance;
-                            continue;
-                        }
-                        distanceMap[i] = cumulativeDistance;
-                    }
-
-                    // Get the distance to next signal after stopping
                     const nextSignal = findNextSignalAfterStop(stopPoint);
-                    const distanceToNextSignal = nextSignal ? nextSignal.distance : 0;
-
-                    // Note: Starter signal will be added as a common dataset at x=0, not individually
-
-                    // Second pass: plot data using cumulative distance
-                    for (let i = stop.endIndex - 1; i >= 0; i--) {
-                        const currentLoc = allLocations[i];
-                        if (isNaN(currentLoc.time.getTime())) continue;
-
-                        const currentPoint = turf.point([currentLoc.lon, currentLoc.lat]);
-                        const distanceToStop = turf.distance(currentPoint, stopPoint, { units: 'meters' });
-
-                        if (distanceToStop > 3100) break;
-
-                        brakingCheckpoints.forEach(cp => {
-                            if (!checkedPoints.has(cp.name) && distanceToStop >= cp.distance) {
-                                if (currentLoc.speed > cp.speed) {
-                                    brakingExceptions.push({
-                                        station: stop.station,
-                                        location: cp.name,
-                                        actualSpeed: currentLoc.speed,
-                                        standardSpeed: cp.speed,
-                                        time: formatTime(currentLoc.time)
-                                    });
-                                }
-                                checkedPoints.add(cp.name);
-                            }
-                        });
-
-                        if (distanceToStop <= 3000) {
-                            // Add distance to next signal to the x value
-                            const xValue = distanceMap[i] + distanceToNextSignal;
-                            // Only add if total distance from starter doesn't exceed 3200m
-                            if (xValue <= 3200) {
-                                stopData.unshift({ x: xValue, y: currentLoc.speed });
-                            }
-                        }
-                    }
-
-                    const color = colors[index % colors.length];
-                    //let legendLabel = `${stop.station} at ${formatTime(stop.time)}`;
-                    let legendLabel = ``;
-                    let signalText = '';
                     
                     if (nextSignal) {
-                        signalText = `${nextSignal.station} (${nextSignal.type}) ${Math.round(nextSignal.distance)}m`;
+                        // Create a unique key for this signal (station + type)
+                        const signalKey = `${nextSignal.station}_${nextSignal.type}`;
+                        
+                        if (!stopGroups.has(signalKey)) {
+                            stopGroups.set(signalKey, {
+                                signal: nextSignal,
+                                stops: []
+                            });
+                        }
+                        
+                        stopGroups.get(signalKey).stops.push({...stop, originalIndex: index, stopPoint});
+                    } else {
+                        // No signal found, treat as standalone
+                        const signalKey = `no_signal_${index}`;
+                        stopGroups.set(signalKey, {
+                            signal: null,
+                            stops: [{...stop, originalIndex: index, stopPoint}]
+                        });
                     }
+                });
+                
+                // Now process each group - all stops in a group will share the same reference signal and distance
+                stopGroups.forEach((group, signalKey) => {
+                    // Use the first stop's signal info as the reference for all stops in this group
+                    const referenceSignal = group.signal;
+                    const referenceDistanceToNextSignal = referenceSignal ? referenceSignal.distance : 0;
+                    
+                    group.stops.forEach(stop => {
+                        const index = stop.originalIndex;
+                        const stopPoint = stop.stopPoint;
+                        const stopData = [];
+                        let checkedPoints = new Set();
 
-                    const legendEl = document.createElement('span');
-                    legendEl.className = 'legend-item inline-flex flex-col items-start m-1 px-2 py-0.5 rounded-full text-xs font-medium';
-                    legendEl.style.backgroundColor = `${color}20`;
-                    legendEl.style.color = color;
-                    legendEl.innerHTML = `<div class="legend-item-content"><div class="legend-item-text">${signalText}<br>${formatTime(stop.time)}</div><span class="legend-item-delete" title="Click to delete this dataset">✕</span></div>`;
-                    legendEl.dataset.datasetIndex = datasets.length;
-                    legendEl.title = `${signalText} - Stopped at ${formatTime(stop.time)}`;
-                    stoppageLegend.appendChild(legendEl);
-
-                    datasets.push({
-                        label: legendLabel, data: stopData, borderColor: color,
-                        borderWidth: 2.5, pointRadius: 0, tension: 0.1, originalBorderWidth: 2.5,
-                        stopIndex: index
-                    });
-
-                    // Add signal markers dataset for this specific stop
-                    if (signalData && signalData.length > 0) {
-                        const signalLatKey = findKey(signalData[0], ['Latitude']);
-                        const signalLonKey = findKey(signalData[0], ['Longitude']);
-                        const stationKey = findKey(signalData[0], ['Station', 'Location']);
-                        const typeKey = findKey(signalData[0], ['Type']);
-                        const stopSigKey = findKey(signalData[0], ['Designation Of Stop Signal']);
-                        const permSigKey = findKey(signalData[0], ['Designation Of Permissive Signal']);
-                        const dirKey = findKey(signalData[0], ['Direction', 'Dir']);
-                        const signalLabelKey = findKey(signalData[0], ['Signal Label']);
-
-                        if (signalLatKey && signalLonKey) {
-                            const signalMarkersData = [];
-                            const rawSignalData = []; // Collect all signals first for filtering
-
-                            // Calculate cumulative distance from each point back to the stop
-                            const distanceMap = []; // Maps index to cumulative distance
-
-                            // First pass: calculate cumulative distances backwards from stop
-                            let cumulativeDistance = 0;
-                            for (let i = stop.endIndex - 1; i >= 0; i--) {
-                                const currentLoc = allLocations[i];
-                                // Add distance from current point to next point (towards stop) FIRST
-                                if (i < stop.endIndex - 1 && allLocations[i + 1]) {
-                                    const nextDist = allLocations[i + 1].distFromPrev || 0;
-                                    cumulativeDistance += nextDist;
-                                }
-                                if (isNaN(currentLoc.time.getTime())) {
-                                    distanceMap[i] = cumulativeDistance;
-                                    continue;
-                                }
-                                distanceMap[i] = cumulativeDistance;
+                        // Calculate cumulative distance for braking curve
+                        let cumulativeDistance = 0;
+                        const distanceMap = []; // Maps index to cumulative distance
+                        
+                        // First pass: calculate cumulative distances backwards from stop
+                        for (let i = stop.endIndex - 1; i >= 0; i--) {
+                            const currentLoc = allLocations[i];
+                            // Add distance from current point to next point (towards stop) FIRST
+                            if (i < stop.endIndex - 1 && allLocations[i + 1]) {
+                                const nextDist = allLocations[i + 1].distFromPrev || 0;
+                                cumulativeDistance += nextDist;
                             }
+                            if (isNaN(currentLoc.time.getTime())) {
+                                distanceMap[i] = cumulativeDistance;
+                                continue;
+                            }
+                            distanceMap[i] = cumulativeDistance;
+                        }
 
-                            // Check which signals were passed in the braking period for this stop
-                            // Find the nearest RTIS point to each signal for accurate speed reading
-                            for (const signal of signalData) {
-                                // Filter signals by selected route SectionId
-                                if (!isSignalInSelectedRoute(signal)) continue;
-                                
-                                const signalLat = parseFloat(signal[signalLatKey]);
-                                const signalLon = parseFloat(signal[signalLonKey]);
-                                if (isNaN(signalLat) || isNaN(signalLon)) continue;
+                        // Use the reference signal distance for ALL stops in this group
+                        const nextSignal = referenceSignal;
+                        const distanceToNextSignal = referenceDistanceToNextSignal;
 
-                                const signalPoint = turf.point([signalLon, signalLat]);
-                                const signalType = signal[typeKey] || signal[stopSigKey] || signal[permSigKey] || 'Unknown';
-                                const signalStation = signal[stationKey] || 'N/A';
-                                const signalDirection = dirKey ? (signal[dirKey] || 'N/A') : 'N/A';
+                        // Note: Starter signal will be added as a common dataset at x=0, not individually
 
-                                // Find the nearest RTIS point to this signal within braking zone
-                                let nearestRtisIndex = -1;
-                                let minDistToSignal = Infinity;
+                        // Second pass: plot data using cumulative distance
+                        for (let i = stop.endIndex - 1; i >= 0; i--) {
+                            const currentLoc = allLocations[i];
+                            if (isNaN(currentLoc.time.getTime())) continue;
 
-                                for (let i = stop.endIndex - 1; i >= 0; i--) {
-                                    const currentLoc = allLocations[i];
-                                    if (isNaN(currentLoc.time.getTime())) continue;
+                            const currentPoint = turf.point([currentLoc.lon, currentLoc.lat]);
+                            const distanceToStop = turf.distance(currentPoint, stopPoint, { units: 'meters' });
 
-                                    const currentPoint = turf.point([currentLoc.lon, currentLoc.lat]);
-                                    const distanceToStop = turf.distance(currentPoint, stopPoint, { units: 'meters' });
+                            if (distanceToStop > 3100) break;
 
-                                    if (distanceToStop > 3200) break; // Match dataset limit of 3200m
-
-                                    const distToSignal = turf.distance(currentPoint, signalPoint, { units: 'meters' });
-
-                                    // Track the nearest RTIS point to this signal
-                                    if (distToSignal < minDistToSignal) {
-                                        minDistToSignal = distToSignal;
-                                        nearestRtisIndex = i;
-                                    }
-                                }
-
-                                // Only add signal if nearest point is within threshold (same as Signal Analysis)
-                                if (nearestRtisIndex !== -1 && minDistToSignal < MAX_SIGNAL_DISTANCE_METERS) {
-                                    const nearestLoc = allLocations[nearestRtisIndex];
-                                    
-                                    // Check if this signal is already in raw data
-                                    const signalExists = rawSignalData.some(m => 
-                                        m.signalStation === signalStation && m.signalType === signalType && m.direction === signalDirection
-                                    );
-
-                                    if (!signalExists) {
-                                        const signalLabel = signalLabelKey ? signal[signalLabelKey] : null;
-                                        rawSignalData.push({
-                                            x: distanceMap[nearestRtisIndex] + distanceToNextSignal,
-                                            y: nearestLoc.speed,
-                                            signalType: signalType,
-                                            signalStation: signalStation,
-                                            direction: signalDirection,
-                                            rtisIndex: nearestRtisIndex,
-                                            signalLabel: signalLabel
+                            brakingCheckpoints.forEach(cp => {
+                                if (!checkedPoints.has(cp.name) && distanceToStop >= cp.distance) {
+                                    if (currentLoc.speed > cp.speed) {
+                                        brakingExceptions.push({
+                                            station: stop.station,
+                                            location: cp.name,
+                                            actualSpeed: currentLoc.speed,
+                                            standardSpeed: cp.speed,
+                                            time: formatTime(currentLoc.time)
                                         });
                                     }
+                                    checkedPoints.add(cp.name);
+                                }
+                            });
+
+                            if (distanceToStop <= 3000) {
+                                // Add distance to next signal to the x value
+                                const xValue = distanceMap[i] + distanceToNextSignal;
+                                // Only add if total distance from starter doesn't exceed 3200m
+                                if (xValue <= 3200) {
+                                    stopData.unshift({ x: xValue, y: currentLoc.speed });
                                 }
                             }
+                        }
+
+                        const color = colors[index % colors.length];
+                        //let legendLabel = `${stop.station} at ${formatTime(stop.time)}`;
+                        let legendLabel = ``;
+                        let signalText = '';
+                        
+                        if (nextSignal) {
+                            signalText = `${nextSignal.station} (${nextSignal.type}) ${Math.round(nextSignal.distance)}m`;
+                        }
+
+                        const legendEl = document.createElement('span');
+                        legendEl.className = 'legend-item inline-flex flex-col items-start m-1 px-2 py-0.5 rounded-full text-xs font-medium';
+                        legendEl.style.backgroundColor = `${color}20`;
+                        legendEl.style.color = color;
+                        legendEl.innerHTML = `<div class="legend-item-content"><div class="legend-item-text">${signalText}<br>${formatTime(stop.time)}</div><span class="legend-item-delete" title="Click to delete this dataset">✕</span></div>`;
+                        legendEl.dataset.datasetIndex = datasets.length;
+                        legendEl.title = `${signalText} - Stopped at ${formatTime(stop.time)}`;
+                        stoppageLegend.appendChild(legendEl);
+
+                        datasets.push({
+                            label: legendLabel, data: stopData, borderColor: color,
+                            borderWidth: 2.5, pointRadius: 0, tension: 0.1, originalBorderWidth: 2.5,
+                            stopIndex: index,
+                            signalInfo: nextSignal,
+                            timeLabel: formatTime(stop.time)
+                        });
+
+                        // Add signal markers dataset for this specific stop
+                        if (signalData && signalData.length > 0) {
+                            const signalLatKey = findKey(signalData[0], ['Latitude']);
+                            const signalLonKey = findKey(signalData[0], ['Longitude']);
+                            const stationKey = findKey(signalData[0], ['Station', 'Location']);
+                            const typeKey = findKey(signalData[0], ['Type']);
+                            const stopSigKey = findKey(signalData[0], ['Designation Of Stop Signal']);
+                            const permSigKey = findKey(signalData[0], ['Designation Of Permissive Signal']);
+                            const dirKey = findKey(signalData[0], ['Direction', 'Dir']);
+                            const signalLabelKey = findKey(signalData[0], ['Signal Label']);
+
+                            if (signalLatKey && signalLonKey) {
+                                const signalMarkersData = [];
+                                const rawSignalData = []; // Collect all signals first for filtering
+
+                                // Re-use the already calculated distanceMap from above (no need to recalculate)
+
+                                // Re-use the already calculated distanceMap from above (no need to recalculate)
+
+                                // Check which signals were passed in the braking period for this stop
+                                // Find the nearest RTIS point to each signal for accurate speed reading
+                                for (const signal of signalData) {
+                                    // Filter signals by selected route SectionId
+                                    if (!isSignalInSelectedRoute(signal)) continue;
+                                    
+                                    const signalLat = parseFloat(signal[signalLatKey]);
+                                    const signalLon = parseFloat(signal[signalLonKey]);
+                                    if (isNaN(signalLat) || isNaN(signalLon)) continue;
+
+                                    const signalPoint = turf.point([signalLon, signalLat]);
+                                    const signalType = signal[typeKey] || signal[stopSigKey] || signal[permSigKey] || 'Unknown';
+                                    const signalStation = signal[stationKey] || 'N/A';
+                                    const signalDirection = dirKey ? (signal[dirKey] || 'N/A') : 'N/A';
+
+                                    // Find the nearest RTIS point to this signal within braking zone
+                                    let nearestRtisIndex = -1;
+                                    let minDistToSignal = Infinity;
+
+                                    for (let i = stop.endIndex - 1; i >= 0; i--) {
+                                        const currentLoc = allLocations[i];
+                                        if (isNaN(currentLoc.time.getTime())) continue;
+
+                                        const currentPoint = turf.point([currentLoc.lon, currentLoc.lat]);
+                                        const distanceToStop = turf.distance(currentPoint, stopPoint, { units: 'meters' });
+
+                                        if (distanceToStop > 3200) break; // Match dataset limit of 3200m
+
+                                        const distToSignal = turf.distance(currentPoint, signalPoint, { units: 'meters' });
+
+                                        // Track the nearest RTIS point to this signal
+                                        if (distToSignal < minDistToSignal) {
+                                            minDistToSignal = distToSignal;
+                                            nearestRtisIndex = i;
+                                        }
+                                    }
+
+                                    // Only add signal if nearest point is within threshold (same as Signal Analysis)
+                                    if (nearestRtisIndex !== -1 && minDistToSignal < MAX_SIGNAL_DISTANCE_METERS) {
+                                        const nearestLoc = allLocations[nearestRtisIndex];
+                                        
+                                        // Check if this signal is already in raw data
+                                        const signalExists = rawSignalData.some(m => 
+                                            m.signalStation === signalStation && m.signalType === signalType && m.direction === signalDirection
+                                        );
+
+                                        if (!signalExists) {
+                                            const signalLabel = signalLabelKey ? signal[signalLabelKey] : null;
+                                            rawSignalData.push({
+                                                x: distanceMap[nearestRtisIndex] + distanceToNextSignal,
+                                                y: nearestLoc.speed,
+                                                signalType: signalType,
+                                                signalStation: signalStation,
+                                                direction: signalDirection,
+                                                rtisIndex: nearestRtisIndex,
+                                                signalLabel: signalLabel
+                                            });
+                                        }
+                                    }
+                                }
 
                             // Sort by rtisIndex to determine which signals were encountered first
                             rawSignalData.sort((a, b) => a.rtisIndex - b.rtisIndex);
@@ -4089,9 +4356,7 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                             }
                         }
                     }
-                }).filter((item, index) => {
-                    // Only keep main stop datasets in this iteration
-                    return true;
+                    });
                 });
 
                 // Add a single common Starter Signal marker at x=0 for all graphs
@@ -4222,6 +4487,13 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                 };
                 
                 stoppingAnalysisChart = plotChart('stoppingAnalysisChart', { datasets }, options, [signalLabelPlugin]);
+
+                // Cache the chart data for creating additional graphs
+                brakeChartDataCache = {
+                    datasets: datasets,
+                    options: options,
+                    plugins: [signalLabelPlugin]
+                };
 
                 stoppageLegend.querySelectorAll('.legend-item').forEach(item => {
                     // Handle left-click to toggle visibility
