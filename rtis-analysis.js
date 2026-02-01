@@ -1,4 +1,3 @@
-    <script>
         document.addEventListener('DOMContentLoaded', () => {
             const DEFAULT_MAX_SPEED = 130;
             const COLOCATED_TOLERANCE_METERS = 50;
@@ -3876,4 +3875,4 @@
             }
 
         });
-    </script>
+
