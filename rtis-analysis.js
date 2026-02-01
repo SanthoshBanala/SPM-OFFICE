@@ -1,3 +1,4 @@
+
         document.addEventListener('DOMContentLoaded', () => {
             const DEFAULT_MAX_SPEED = 130;
             const COLOCATED_TOLERANCE_METERS = 50;
@@ -19,11 +20,10 @@
             let selectedRouteData = null;
             
             // URL decode helper (obfuscated for security)
-            const _0x = (s) => atob(s.split('').map(c => String.fromCharCode(c.charCodeAt(0) - 3)).join(''));
+            // Plain URLs (no encoding)
             
             // Data source references (encoded)
-            const _s1 = 'dKU3fKP9O|<|\\[fx]5o3dKYlg[QofpQyeqUoeqTx\\5<wO4QkeqUre6QrTpIx\\Z{kO4QTWV4SUn]MT3XyfpYpf|<r]ZInf|<w\\ZoxO3oxfKY3OXLoPmEJX3ToPmEH\\[UkOpQ}gj@@';
-            const SIGNAL_DATA_URL = _0x(_s1);
+            const SIGNAL_DATA_URL = 'https://raw.githubusercontent.com/SanthoshBanala/SPM-OFFICE/refs/heads/main/Input-B%20FSD%20Data.csv';
             
             // Function to load Signal Data from URL
             async function loadSignalDataFromGDrive(url) {
@@ -145,8 +145,7 @@
             const routeLoadStatus = document.getElementById('route-load-status');
 
             // Route data source (encoded)
-            const _r1 = 'dKU3fKP9O|<|\\[fx]5o3dKYlg[QofpQyeqUoeqTx\\5<wO4QkeqUre6QrTpIx\\Z{kO4QTWV4SUn]MT3XyfpYpf|<r]ZInf|<w\\ZoxO4Myg[UoXJI3dKPx\\6Q5';
-            const ROUTE_DATA_URL = _0x(_r1);
+            const ROUTE_DATA_URL = 'https://raw.githubusercontent.com/SanthoshBanala/SPM-OFFICE/refs/heads/main/RoutePaths.csv';
             
             // Load route data from source
             async function loadRouteData() {
@@ -3875,4 +3874,3 @@
             }
 
         });
-
