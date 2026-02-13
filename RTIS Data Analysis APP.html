@@ -142,6 +142,18 @@
             #output-sections {
                 gap: 0.2rem !important;
             }
+
+            /* Hide +/- button columns in all editable tables when printing */
+            .speed-analysis-table tr td:last-child,
+            .speed-analysis-table tr th:last-child,
+            .psr-tsr-table tr td:last-child,
+            .psr-tsr-table tr th:last-child,
+            .overspeed-table tr td:last-child,
+            .overspeed-table tr th:last-child,
+            .brake-analysis-table tr td:last-child,
+            .brake-analysis-table tr th:last-child {
+                display: none !important;
+            }
         }
 
         @media print {
@@ -655,13 +667,14 @@
         .brake-analysis-table td textarea {
             min-width: 100% !important;
             width: 100% !important;
-            height: 45px !important;
+            height: 25px !important;
             padding: 0 !important;
             font-size: 0.75rem !important;
             text-align: center;
             border: 1px solid #d1d5db;
             border-radius: 0.25rem;
             resize: none;
+            overflow: hidden;
             font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
             color: #000000;
         }
@@ -686,13 +699,13 @@
         .brake-analysis-table td:nth-child(6),
         .brake-analysis-table th:nth-child(7),
         .brake-analysis-table td:nth-child(7) {
-            width: 9%;
+            width: 7%;
         }
 
         /* Remarks column - 3x wider (33%) */
         .brake-analysis-table th:nth-child(8),
         .brake-analysis-table td:nth-child(8) {
-            width: 30%;
+            width: 44%;
         }
 
         /* Actions column - fixed width for +/- buttons */
@@ -758,7 +771,7 @@
                 line-height: 1 !important;
             }
 
-            p:first-of-type {
+            body > div > p:first-of-type {
                 display: none !important;
             }
 
@@ -901,6 +914,20 @@
                 box-shadow: none !important;
             }
 
+            /* Signature section print styles */
+            .signature-container {
+                height: auto !important;
+                min-height: 100px !important;
+                page-break-inside: avoid !important;
+                display: block !important;
+            }
+
+            .signature-container .flex {
+                display: flex !important;
+                justify-content: space-between !important;
+                align-items: flex-end !important;
+            }
+
             /* Allow tables to break across pages during printing */
             .table-container {
                 overflow: visible !important;
@@ -990,11 +1017,11 @@
             .brake-analysis-table td textarea {
                 height: auto !important;
                 min-height: 20px !important;
-                max-height: 40px !important;
+                max-height: 22px !important;
                 font-size: 0.7rem !important;
                 padding: 1px !important;
                 border: 0.5px solid #d1d5db !important;
-                overflow: visible !important;
+                overflow: hidden !important;
             }
 
             /* Unified Data Table Print Styles */
@@ -1026,6 +1053,11 @@
                 overflow: visible !important;
             }
         }
+
+        /* Always hide braking exceptions container */
+        #braking-exceptions-container {
+            display: none !important;
+        }
     </style>
 </head>
 
@@ -1047,7 +1079,7 @@
         <p class="text-sm md:text-lg text-gray-600 text-center">Analysis of speed, performance, and violations.</p>
 
         <div id="trip-details-section" class="hidden px-3 md:px-4 py-2 md:py-3 border-l-4 border-indigo-400 bg-indigo-50 rounded-lg">
-            <h3 class="text-lg md:text-xl font-bold text-indigo-800 mb-2 text-center">1. Trip Details</h3>
+            <h3 class="text-lg md:text-xl font-bold text-indigo-800 mb-2 text-center">Trip Details</h3>
             <div id="trip-details-content"
                 class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 text-sm gap-2">
             </div>
@@ -1078,13 +1110,20 @@
             </div>
         </div>
 
+        <!-- Signal Data Status Section -->
+        <div id="gdrive-signal-section" class="no-print p-3 md:p-4 bg-green-50 rounded-lg border border-green-200 mt-4">
+            <h3 class="text-base md:text-lg font-semibold text-green-800 mb-2">FSD Signal Data (Auto-loaded)</h3>
+            <p class="text-xs text-green-600 mb-3">Signal/GPS data loads automatically</p>
+            <div id="gdrive-signal-status" class="mt-2 text-xs text-blue-600">Loading signal data...</div>
+        </div>
+
         <!-- Route Selection Section -->
         <div id="route-selection-section" class="hidden no-print p-3 md:p-4 bg-blue-50 rounded-lg border border-blue-200">
             <h3 class="text-base md:text-lg font-semibold text-blue-800 mb-2">Route Selection (for Signal Filtering)</h3>
-            <p class="text-xs text-blue-600 mb-3">Select a route to filter signals by SectionId for Brake Pattern Analysis</p>
+            <!-- <p class="text-xs text-blue-600 mb-3">Select a route to filter signals by SectionId for Brake Pattern Analysis</p> -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Select Route (Path)</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Type and Select Route (Path)</label>
                     <div class="route-dropdown-container">
                         <input type="text" id="route-search-input" class="route-search-input" placeholder="Search or select a route..." autocomplete="off">
                         <button type="button" id="route-clear-btn" class="route-clear-btn hidden" title="Clear selection">&times;</button>
@@ -1111,8 +1150,8 @@
                         class="mt-1 block w-full pl-3 pr-10 py-3 md:py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md bg-white"></select>
                 </div>
                 <div class="md:col-span-2">
-                    <label for="start-time-override" class="block text-sm font-medium text-gray-700">Manual Time (HH:MM:SS)</label>
-                    <input type="text" id="start-time-override" placeholder="05:30:00"
+                    <label for="start-time-override" class="block text-sm font-medium text-gray-700">Manual Time (DD-MM-YYYY HH:MM:SS)</label>
+                    <input type="text" id="start-time-override" placeholder="28-01-2026 05:30:00"
                         class="mt-1 block w-full pl-3 pr-10 py-3 md:py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md bg-white" />
                 </div>
                 <div class="md:col-span-3">
@@ -1121,8 +1160,8 @@
                         class="mt-1 block w-full pl-3 pr-10 py-3 md:py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md bg-white"></select>
                 </div>
                 <div class="md:col-span-2">
-                    <label for="end-time-override" class="block text-sm font-medium text-gray-700">Manual Time(HH:MM:SS)</label>
-                    <input type="text" id="end-time-override" placeholder="06:45:30"
+                    <label for="end-time-override" class="block text-sm font-medium text-gray-700">Manual Time (DD-MM-YYYY HH:MM:SS)</label>
+                    <input type="text" id="end-time-override" placeholder="28-01-2026 06:45:30"
                         class="mt-1 block w-full pl-3 pr-10 py-3 md:py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md bg-white" />
                 </div>
                 <div id="direction-select-wrapper" class="hidden md:col-span-2">
@@ -1159,7 +1198,7 @@
                         Report</button>
                 </div>
             </div>
-
+            <div class="mt-4 text-center no-print"><a href="https://docs.google.com/forms/d/e/1FAIpQLSehuzlq4eUa-mVnc8xSVRT7DqyS7M3QJjZx-ImH9v3pOX4kFA/viewform" target="_blank" rel="noopener noreferrer"><button class="w-full md:w-auto px-4 py-3 md:py-2 bg-green-600 text-white font-medium rounded-lg shadow-md hover:bg-blue-700 transition-colors">Upload SPM Report</button></a></div>
             <div id="violations-container" class="chart-section hidden">
                 <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-2 md:mb-4">Speed Violations
                     Detected</h2>
@@ -1189,33 +1228,239 @@
                         Detail View</button></div>
             </div>
 
-            <div class="chart-section" id="first30-section">
-                <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-4">
-                    2. First 30 Minutes
+
+
+            <div class="chart-section" id="full-run-profile-section">
+                <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-2 md:mb-4">Full Run Speed
+                    Profile</h2>
+                <div class="mb-3 flex gap-2 justify-center no-print">
+                    <button id="zoom-in-btn" class="px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors" title="Zoom In">🔍+ Zoom In</button>
+                    <button id="zoom-out-btn" class="px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors" title="Zoom Out">🔍- Zoom Out</button>
+                    <button id="zoom-reset-btn" class="px-3 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors" title="Reset Zoom">↺ Reset</button>
+                </div>
+                <div class="relative mb-8 h-[300px]"><canvas id="speedChart" class="chart-a4"></canvas></div>
+            </div>
+
+            <div class="">
+                <!--Station Entry Speeds-->
+                <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-1">
+                    Station Entry Speeds
+                </h3>
+
+                <div class="table-container relative shadow-md sm:rounded-lg text-center">
+                    <table class="w-full text-sm text-center text-black-500 speed-analysis-table" id="stationEntrySpeedTable">
+                        <thead class="text-xs text-black-700 bg-gray-50 text-center">
+                            <tr>
+                                <th class="py-1 px-1">Station</th>
+                                <th class="py-1 px-1">Time</th>
+                                <th class="py-1 px-1">ML/LL</th>
+                                <th class="py-1 px-1">Reduced Speed</th>
+                                <th class="py-1 px-1">Speed at YY</th>
+                                <th class="py-1 px-1">Speed at Y</th>
+                                <th class="py-1 px-1">Remarks</th>
+                                <th class="py-1 px-1"></th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            <tr class="text-center">
+                                <td class="py-1 px-1 text-center">
+                                    <div class="flex justify-center">
+                                        <input type="text"
+                                            class="w-full border rounded px-2 py-1 text-sm text-center" />
+                                    </div>
+                                </td>
+                                <td class="py-1 px-1 text-center">
+                                    <div class="flex justify-center">
+                                        <input type="text"
+                                            class="w-full border rounded px-2 py-1 text-sm text-center" />
+                                    </div>
+                                </td>
+                                <td class="py-1 px-1 text-center">
+                                    <div class="flex justify-center">
+                                        <input type="text"
+                                            class="w-full border rounded px-2 py-1 text-sm text-center" />
+                                    </div>
+                                </td>
+                                <td class="py-1 px-1 text-center">
+                                    <div class="flex justify-center">
+                                        <input type="text"
+                                            class="w-full border rounded px-2 py-1 text-sm text-center" />
+                                    </div>
+                                </td>
+                                <td class="py-1 px-1 text-center">
+                                    <div class="flex justify-center">
+                                        <input type="text"
+                                            class="w-full border rounded px-2 py-1 text-sm text-center" />
+                                    </div>
+                                </td>
+                                <td class="py-1 px-1 text-center">
+                                    <div class="flex justify-center">
+                                        <input type="text"
+                                            class="w-full border rounded px-2 py-1 text-sm text-center" />
+                                    </div>
+                                </td>
+                                <td class="py-1 px-1 text-center">
+                                    <div class="flex justify-center">
+                                        <input type="text" value="NIL"
+                                            class="w-full border rounded px-2 py-1 text-sm text-center" />
+                                    </div>
+                                </td>
+
+                                <!-- Plus / Minus buttons -->
+                                <td class="py-3 px-3">
+                                    <div class="flex justify-center items-center space-x-2">
+                                        <button type="button"
+                                            class="add-row text-green-600 text-xl font-bold hover:text-green-800">
+                                            +
+                                        </button>
+                                        <button type="button"
+                                            class="remove-row text-red-600 text-xl font-bold hover:text-red-800">
+                                            &minus;
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <!--PST and TSR-->
+                <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-1">
+                    PSR and TSR violations (if any)
+                </h3>
+
+                <div class="table-container relative shadow-md sm:rounded-lg">
+                    <table class="w-full text-sm text-center text-black-500 data-table psr-tsr-table" id="speedTable">
+                        <thead class="text-xs text-black-700 bg-gray-50">
+                            <tr>
+                                <th class="py-1 px-1">section</th>
+                                <th class="py-1 px-1">Kilometre</th>
+                                <th class="py-1 px-1">Speed</th>
+                                <th class="py-1 px-1">Distance</th>
+                                <th class="py-1 px-1">Observed Speed</th>
+                                <th class="py-1 px-1">Observed Distance</th>
+                                <th class="py-1 px-1">Remarks</th>
+                                <th class="py-1 px-1"></th>
+                            </tr>
+                        </thead>
+
+                        <tbody class="text-center">
+                            <tr>
+                                <td class="py-1 px-1 text-center"><input type="text"
+                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
+                                <td class="py-1 px-1 text-center"><input type="text"
+                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
+                                <td class="py-1 px-1 text-center"><input type="text"
+                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
+                                <td class="py-1 px-1 text-center"><input type="text"
+                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
+                                <td class="py-1 px-1 text-center"><input type="text"
+                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
+                                <td class="py-1 px-1 text-center"><input type="text"
+                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
+                                <td class="py-1 px-1 text-center"><input type="text" value="NIL"
+                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
+
+                                <!-- Plus / Minus buttons -->
+                                <td class="py-3 px-3">
+                                    <div class="flex justify-center items-center space-x-2">
+                                        <button type="button"
+                                            class="add-row text-green-600 text-xl font-bold hover:text-green-800">
+                                            +
+                                        </button>
+                                        <button type="button"
+                                            class="remove-row text-red-600 text-xl font-bold hover:text-red-800">
+                                            &minus;
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!--Over Speed beyond MPS or MPS not maintained-->
+                <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-1">
+                    Over Speed beyond MPS or MPS not maintained
+                </h3>
+
+                <div class="table-container relative shadow-md sm:rounded-lg">
+                    <table class="w-full text-sm text-center text-black-500 data-table overspeed-table" id="speedTable">
+                        <thead class="text-xs text-black-700 bg-gray-50">
+                            <tr>
+                                <th class="py-1 px-1">section</th>
+                                <th class="py-1 px-1">Time</th>
+                                <th class="py-1 px-1">Permitted Speed</th>
+                                <th class="py-1 px-1">Actual Speed</th>
+                                <th class="py-1 px-1">Duration Travelled</th>
+                                <th class="py-1 px-1">Distance Travelled</th>
+                                <th class="py-1 px-1">Remarks</th>
+                                <th class="py-1 px-1"></th>
+                            </tr>
+                        </thead>
+
+                        <tbody class="text-center">
+                            <tr>
+                                <td class="py-1 px-1 text-center"><input type="text"
+                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
+                                <td class="py-1 px-1 text-center"><input type="text"
+                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
+                                <td class="py-1 px-1 text-center"><input type="text"
+                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
+                                <td class="py-1 px-1 text-center"><input type="text"
+                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
+                                <td class="py-1 px-1 text-center"><input type="text"
+                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
+                                <td class="py-1 px-1 text-center"><input type="text"
+                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
+                                <td class="py-1 px-1 text-center"><input type="text" value="NIL"
+                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
+
+                                <!-- Plus / Minus buttons -->
+                                <td class="py-3 px-3">
+                                    <div class="flex justify-center items-center space-x-2">
+                                        <button type="button"
+                                            class="add-row text-green-600 text-xl font-bold hover:text-green-800">
+                                            +
+                                        </button>
+                                        <button type="button"
+                                            class="remove-row text-red-600 text-xl font-bold hover:text-red-800">
+                                            &minus;
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                </div>
+                            <div class="chart-section" id="first30-section">
+                <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-4 hidden">
+                    First 30 Minutes
                 </h2>
 
-                <div class="mb-3 flex gap-2 justify-center no-print">
+                <div class="mb-3 flex gap-2 justify-center no-print hidden">
                     <button id="zoom-in-btn-first30" class="px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors" title="Zoom In">🔍+ Zoom In</button>
                     <button id="zoom-out-btn-first30" class="px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors" title="Zoom Out">🔍- Zoom Out</button>
                     <button id="zoom-reset-btn-first30" class="px-3 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors" title="Reset Zoom">↺ Reset</button>
                 </div>
 
-                <div class="relative mb-8 h-[350px]">
+                <div class="relative mb-8 h-[350px] hidden">
                     <canvas id="first30MinChart" class="chart-a4"></canvas>
                 </div>
 
-                <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-6 hidden">
+                <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-6">
                     Brake Feel Test Analysis
                 </h3>
-                <div class="relative mb-8 h-[300px] hidden">
+                <div class="relative mb-8 h-[300px]">
                     <canvas id="brakeFeel600Chart" class="chart-a4"></canvas>
                 </div>
 
-                <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-6 hidden">
+                <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-6">
                     Brake Power Test Analysis
                 </h3>
 
-                <div class="relative mb-8 h-[300px] hidden">
+                <div class="relative mb-8 h-[300px]">
                     <canvas id="brakePowerChart" class="chart-a4"></canvas>
                 </div>
 
@@ -1279,7 +1524,7 @@
                                     Remarks (if any)
                                 </td>
                                 <td class="py-1 px-1">
-                                    <input type="text" name="remarks" placeholder="Optional remarks"
+                                    <input type="text" name="remarks" value="Satisfactory"
                                         class="w-full border rounded px-2 py-1 text-sm" />
                                 </td>
                             </tr>
@@ -1315,251 +1560,42 @@
                     </table>
                 </div> 
             </div>
-
-            <div class="chart-section" id="full-run-profile-section">
-                <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-2 md:mb-4">3. Full Run Speed
-                    Profile</h2>
-                <div class="mb-3 flex gap-2 justify-center no-print">
-                    <button id="zoom-in-btn" class="px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors" title="Zoom In">🔍+ Zoom In</button>
-                    <button id="zoom-out-btn" class="px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors" title="Zoom Out">🔍- Zoom Out</button>
-                    <button id="zoom-reset-btn" class="px-3 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors" title="Reset Zoom">↺ Reset</button>
-                </div>
-                <div class="relative mb-8 h-[300px]"><canvas id="speedChart" class="chart-a4"></canvas></div>
-            </div>
-
-            <div class="">
-                <!--Station Entry Speeds-->
-                <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-1">
-                    Station Entry Speeds
-                </h3>
-
-                <div class="table-container relative shadow-md sm:rounded-lg text-center">
-                    <table class="w-full text-sm text-center text-black-500 speed-analysis-table" id="speedTable">
-                        <thead class="text-xs text-black-700 bg-gray-50 text-center">
-                            <tr>
-                                <th class="py-1 px-1">Station</th>
-                                <th class="py-1 px-1">Time</th>
-                                <th class="py-1 px-1">ML/LL</th>
-                                <th class="py-1 px-1">Reduced Speed</th>
-                                <th class="py-1 px-1">Speed at YY</th>
-                                <th class="py-1 px-1">Speed at Y</th>
-                                <th class="py-1 px-1">Remarks</th>
-                                <th class="py-1 px-1"></th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            <tr class="text-center">
-                                <td class="py-1 px-1 text-center">
-                                    <div class="flex justify-center">
-                                        <input type="text"
-                                            class="w-full border rounded px-2 py-1 text-sm text-center" />
-                                    </div>
-                                </td>
-                                <td class="py-1 px-1 text-center">
-                                    <div class="flex justify-center">
-                                        <input type="text"
-                                            class="w-full border rounded px-2 py-1 text-sm text-center" />
-                                    </div>
-                                </td>
-                                <td class="py-1 px-1 text-center">
-                                    <div class="flex justify-center">
-                                        <input type="text"
-                                            class="w-full border rounded px-2 py-1 text-sm text-center" />
-                                    </div>
-                                </td>
-                                <td class="py-1 px-1 text-center">
-                                    <div class="flex justify-center">
-                                        <input type="text"
-                                            class="w-full border rounded px-2 py-1 text-sm text-center" />
-                                    </div>
-                                </td>
-                                <td class="py-1 px-1 text-center">
-                                    <div class="flex justify-center">
-                                        <input type="text"
-                                            class="w-full border rounded px-2 py-1 text-sm text-center" />
-                                    </div>
-                                </td>
-                                <td class="py-1 px-1 text-center">
-                                    <div class="flex justify-center">
-                                        <input type="text"
-                                            class="w-full border rounded px-2 py-1 text-sm text-center" />
-                                    </div>
-                                </td>
-                                <td class="py-1 px-1 text-center">
-                                    <div class="flex justify-center">
-                                        <input type="text"
-                                            class="w-full border rounded px-2 py-1 text-sm text-center" />
-                                    </div>
-                                </td>
-
-                                <!-- Plus / Minus buttons -->
-                                <td class="py-3 px-3">
-                                    <div class="flex justify-center items-center space-x-2">
-                                        <button type="button"
-                                            class="add-row text-green-600 text-xl font-bold hover:text-green-800">
-                                            +
-                                        </button>
-                                        <button type="button"
-                                            class="remove-row text-red-600 text-xl font-bold hover:text-red-800">
-                                            &minus;
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <!--PST and TSR-->
-                <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-1">
-                    PSR and TSR violations (if any)
-                </h3>
-
-                <div class="table-container relative shadow-md sm:rounded-lg">
-                    <table class="w-full text-sm text-center text-black-500 data-table psr-tsr-table" id="speedTable">
-                        <thead class="text-xs text-black-700 bg-gray-50">
-                            <tr>
-                                <th class="py-1 px-1">section</th>
-                                <th class="py-1 px-1">Kilometre</th>
-                                <th class="py-1 px-1">Speed</th>
-                                <th class="py-1 px-1">Distance</th>
-                                <th class="py-1 px-1">Observed Speed</th>
-                                <th class="py-1 px-1">Observed Distance</th>
-                                <th class="py-1 px-1">Remarks</th>
-                                <th class="py-1 px-1"></th>
-                            </tr>
-                        </thead>
-
-                        <tbody class="text-center">
-                            <tr>
-                                <td class="py-1 px-1 text-center"><input type="text"
-                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
-                                <td class="py-1 px-1 text-center"><input type="text"
-                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
-                                <td class="py-1 px-1 text-center"><input type="text"
-                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
-                                <td class="py-1 px-1 text-center"><input type="text"
-                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
-                                <td class="py-1 px-1 text-center"><input type="text"
-                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
-                                <td class="py-1 px-1 text-center"><input type="text"
-                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
-                                <td class="py-1 px-1 text-center"><input type="text"
-                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
-
-                                <!-- Plus / Minus buttons -->
-                                <td class="py-3 px-3">
-                                    <div class="flex justify-center items-center space-x-2">
-                                        <button type="button"
-                                            class="add-row text-green-600 text-xl font-bold hover:text-green-800">
-                                            +
-                                        </button>
-                                        <button type="button"
-                                            class="remove-row text-red-600 text-xl font-bold hover:text-red-800">
-                                            &minus;
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!--Over Speed beyond MPS or MPS not maintained-->
-                <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-1">
-                    Over Speed beyond MPS or MPS not maintained
-                </h3>
-
-                <div class="table-container relative shadow-md sm:rounded-lg">
-                    <table class="w-full text-sm text-center text-black-500 data-table overspeed-table" id="speedTable">
-                        <thead class="text-xs text-black-700 bg-gray-50">
-                            <tr>
-                                <th class="py-1 px-1">section</th>
-                                <th class="py-1 px-1">Time</th>
-                                <th class="py-1 px-1">Permitted Speed</th>
-                                <th class="py-1 px-1">Actual Speed</th>
-                                <th class="py-1 px-1">Duration Travelled</th>
-                                <th class="py-1 px-1">Distance Travelled</th>
-                                <th class="py-1 px-1">Remarks</th>
-                                <th class="py-1 px-1"></th>
-                            </tr>
-                        </thead>
-
-                        <tbody class="text-center">
-                            <tr>
-                                <td class="py-1 px-1 text-center"><input type="text"
-                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
-                                <td class="py-1 px-1 text-center"><input type="text"
-                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
-                                <td class="py-1 px-1 text-center"><input type="text"
-                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
-                                <td class="py-1 px-1 text-center"><input type="text"
-                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
-                                <td class="py-1 px-1 text-center"><input type="text"
-                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
-                                <td class="py-1 px-1 text-center"><input type="text"
-                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
-                                <td class="py-1 px-1 text-center"><input type="text"
-                                        class="w-full border rounded px-2 py-1 text-sm" /></td>
-
-                                <!-- Plus / Minus buttons -->
-                                <td class="py-3 px-3">
-                                    <div class="flex justify-center items-center space-x-2">
-                                        <button type="button"
-                                            class="add-row text-green-600 text-xl font-bold hover:text-green-800">
-                                            +
-                                        </button>
-                                        <button type="button"
-                                            class="remove-row text-red-600 text-xl font-bold hover:text-red-800">
-                                            &minus;
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-
-                </div>
-
                 <!--Remarks (if any)-->
                 <h3 class="text-base md:text-xl font-bold text-gray-800 text-center mb-4 mt-1">
-                    Remarks (if any)
+                    Remarks
                 </h3>
 
                 <div class="table-container relative shadow-md sm:rounded-lg">
-                    <table class="w-full text-sm text-center text-black-500 data-table" id="speedTable">
+                    <table class="w-full text-sm text-left text-black-500 data-table" id="speedTable">
                         <tbody>
                             <tr>
-                                <td class="py-1 px-1">
-                                    <textarea placeholder="Remarks" rows="3"
-                                        class="w-full border rounded px-2 py-1 text-sm resize-none"></textarea>
-                                </td>
+                                <td class="py-1 px-1 text-left">
+                                    <textarea placeholder="Remarks" rows="3" 
+                                        class="w-full border rounded px-2 py-1 text-sm resize-none" 
+                                        style="text-align: left;">Very Good Driving</textarea>
                             </tr>
                         </tbody>
                     </table>
                 </div>
 
-                <div class="relative border p-4 h-[160px]">
-                    <!-- other content -->
-
-                    <!-- Bottom-right signature block -->
-                    <div class="absolute bottom-4 left-4 text-right space-y-6">
-
-                        <!-- Loco Pilot -->
-                        <div>
-                            <p class="text-sm font-semibold">Signature of Loco Pilot</p>
-                            <div class="mt-2 w-48"></div>
-                        </div>
-                    </div>
-
-                    <div class="absolute bottom-4 right-4 text-left space-y-6">
-                        <!-- M Satyanarayana -->
-                        <div>
-                            <input type="text" name="supervisor_name" placeholder="M Satyanarayana" value="M Satyanarayana" class="w-48 border rounded px-2 py-1 text-sm font-semibold" /><br/>
-                            <input type="text" name="supervisor_designation" placeholder="CLI / SPM / UBL" value=" CLI / SPM / UBL" class="w-48 border rounded px-2 py-1 text-sm font-semibold mt-1" />
-                            <div class="mt-2 w-48"></div>
+                <div class="relative border p-4 h-[160px] signature-container">
+                    <div class="flex justify-between items-end h-full">
+                        <!-- Loco Pilot - Left Side -->
+                        <div class="text-left space-y-6">
+                            <div>
+                                <p class="text-sm font-semibold">Signature of Loco Pilot</p>
+                                <div class="mt-2 w-48"></div>
+                            </div>
                         </div>
 
+                        <!-- M Satyanarayana - Right Side -->
+                        <div class="text-left space-y-6">
+                            <div>
+                                <input type="text" name="supervisor_name" placeholder="" value="" class="w-48 border rounded px-2 py-1 text-sm font-semibold" /><br/>
+                                <input type="text" name="supervisor_designation" placeholder="CLI / UBL" value=" CLI / UBL" class="w-48 border rounded px-2 py-1 text-sm font-semibold mt-1" />
+                                <div class="mt-2 w-48"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1567,7 +1603,7 @@
             <div class="page-break"></div>
             <div class="chart-section" id="braking-pattern-section">
                 <div class="flex justify-between items-center mb-2 md:mb-4 gap-2 flex-wrap">
-                    <h2 class="text-lg md:text-2xl font-bold text-black-800 text-center flex-1">4. Braking Pattern Analysis & Home Signals</h2>
+                    <h2 class="text-lg md:text-2xl font-bold text-black-800 text-center flex-1">Braking Pattern Analysis</h2>
                     <div class="flex gap-2 items-center no-print">
                         <button id="print-orientation-portrait" class="print-orientation-btn px-3 py-2 bg-gray-400 text-white text-sm font-medium rounded-lg shadow-md hover:bg-gray-500 transition-colors" title="Print in Portrait Mode" data-orientation="portrait">Portrait</button>
                         <button id="print-orientation-landscape" class="print-orientation-btn px-3 py-2 bg-gray-400 text-white text-sm font-medium rounded-lg shadow-md hover:bg-gray-500 transition-colors" title="Print in Landscape Mode" data-orientation="landscape">Landscape</button>
@@ -1688,7 +1724,7 @@
                                     <textarea></textarea>
                                 </td>
                                 <td>
-                                    <textarea></textarea>
+                                    <textarea>NIL</textarea>
                                 </td>
                                 <!-- Plus / Minus buttons -->
                                 <td>
@@ -1710,8 +1746,8 @@
                         <div class="absolute bottom-4 right-4 text-left space-y-6">
                             <!-- M Satyanarayana -->
                             <div>
-                                <input type="text" name="supervisor_name" placeholder="M Satyanarayana" value="M Satyanarayana" class="w-48 border rounded px-2 py-1 text-sm font-semibold" /><br/>
-                                <input type="text" name="supervisor_designation" placeholder="CLI / SPM / UBL" value=" CLI / SPM / UBL" class="w-48 border rounded px-2 py-1 text-sm font-semibold mt-1" />
+                                <input type="text" name="supervisor_name" placeholder="" value="" class="w-48 border rounded px-2 py-1 text-sm font-semibold" /><br/>
+                                <input type="text" name="supervisor_designation" placeholder="CLI / UBL" value=" CLI / UBL" class="w-48 border rounded px-2 py-1 text-sm font-semibold mt-1" />
                                 <div class="mt-2 w-48"></div>
                             </div>
 
@@ -1720,7 +1756,7 @@
                 </div>
                 <div class="page-break"></div>
                 <div id="braking-exceptions-container" class="mt-8 hidden">
-                    <h3 class="text-base md:text-xl font-bold text-black-800 text-center mb-4">5. Braking Exceptions</h3>
+                    <h3 class="text-base md:text-xl font-bold text-black-800 text-center mb-4">Braking Exceptions</h3>
                     <div class="table-container relative shadow-md sm:rounded-lg">
                         <table class="w-full text-sm text-left text-black-500 whitespace-nowrap data-table">
                             <thead class="text-xs text-black-700 uppercase bg-gray-50">
@@ -1740,7 +1776,7 @@
             </div>
 
             <div id="signal-analysis-container" class="chart-section hidden">
-                <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-2 md:mb-4">6. Signal Analysis</h2>
+                <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-2 md:mb-4">Signal Analysis</h2>
                 <div class="table-container relative shadow-md sm:rounded-lg">
                     <table class="w-full text-sm text-left text-gray-500 whitespace-nowrap data-table">
                         <thead class="text-xs text-gray-700 uppercase bg-gray-50">
@@ -1754,26 +1790,12 @@
                         <tbody id="signal-table-body"></tbody>
                     </table>
                 </div>
-            </div>
-
-            <div id="sya-analysis-container" class="chart-section hidden">
-                <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-2 md:mb-4">7. SYA Events</h2>
-                <div class="table-container relative shadow-md sm:rounded-lg">
-                    <table class="w-full text-sm text-left text-gray-500 whitespace-nowrap data-table">
-                        <thead class="text-xs text-gray-700 uppercase bg-gray-50">
-                            <tr>
-                                <th class="py-1 px-1">Station</th>
-                                <th class="py-1 px-1">Time</th>
-                                <th class="py-1 px-1">Speed</th>
-                            </tr>
-                        </thead>
-                        <tbody id="sya-table-body"></tbody>
-                    </table>
-                </div>
+                
+                <div class="mt-4 text-center no-print"><a href="https://forms.gle/Jk9aryDanNKPfBFH6" target="_blank" rel="noopener noreferrer"><button class="w-full md:w-auto px-4 py-3 md:py-2 bg-pink-600 text-white font-medium rounded-lg shadow-md hover:bg-blue-700 transition-colors">Upload Braking Pattern Report</button></a></div>
             </div>
 
             <div id="bulk-match-container" class="chart-section hidden">
-                <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-2 md:mb-4">8. Bulk Matches</h2>
+                <h2 class="text-lg md:text-2xl font-bold text-gray-800 text-center mb-2 md:mb-4">Bulk Matches</h2>
                 <p class="text-center text-xs md:text-sm text-gray-500 mb-4">Matched by Device ID, Station, and Signal
                     Time.</p>
                 <div class="table-container relative shadow-md sm:rounded-lg">
@@ -1816,9 +1838,9 @@
             const DETAIL_TIME_WINDOW_MINUTES = 10;
             const MAX_SIGNAL_DISTANCE_METERS = 30;
 
-            let originalRtisData, oheData, cautionData, signalData, syaData, bulkData;
+            let originalRtisData, cautionData, signalData, bulkData;
             let allLocations, speedChart, first30MinChart, magnifiedSpeedChart, stoppingAnalysisChart, homeSignalsAnalysisChart, brakeFeel600Chart, brakePowerChart;
-            let speedViolations = [], brakingExceptions = [], allLabels = [], allSpeedData = [], allMaxSpeedData = [], allTimestamps = [], signalEvents = [], syaMatchEvents = [], syaPlotData = [], bulkMatchEvents = [];
+            let speedViolations = [], brakingExceptions = [], allLabels = [], allSpeedData = [], allMaxSpeedData = [], allTimestamps = [], signalEvents = [], bulkMatchEvents = [];
             let stoppingAnalysisStops = [], homeSignalsStops = [];
             
             // Store additional brake pattern graph instances
@@ -1829,6 +1851,82 @@
             // Route data for signal filtering
             let routeData = [];
             let selectedRouteData = null;
+            
+            // Signal Data URL (GitHub raw file - loads automatically)
+            const SIGNAL_DATA_URL = 'https://raw.githubusercontent.com/SanthoshBanala/SPM-OFFICE/refs/heads/main/Input-B%20FSD%20Data.csv';
+            
+            // Function to load Signal Data from URL
+            async function loadSignalDataFromGDrive(url) {
+                const statusEl = document.getElementById('gdrive-signal-status');
+                
+                if (!url || url.trim() === '') {
+                    statusEl.innerHTML = 'No URL provided. Please upload signal file manually.';
+                    statusEl.className = 'mt-2 text-xs text-yellow-600';
+                    return false;
+                }
+                
+                statusEl.textContent = 'Loading signal data...';
+                statusEl.className = 'mt-2 text-xs text-blue-600';
+                
+                try {
+                    const response = await fetch(url);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    const csvText = await response.text();
+                    
+                    if (!csvText || csvText.trim() === '') {
+                        throw new Error('Empty response received');
+                    }
+                    
+                    // Parse CSV using PapaParse
+                    const result = Papa.parse(csvText, {
+                        header: true,
+                        skipEmptyLines: true
+                    });
+                    
+                    if (result.errors && result.errors.length > 0) {
+                        console.warn('CSV parsing warnings:', result.errors);
+                    }
+                    
+                    if (!result.data || result.data.length === 0) {
+                        throw new Error('No data found in CSV');
+                    }
+                    
+                    // Verify it's signal data by checking headers
+                    const headers = Object.keys(result.data[0]).map(h => h.toLowerCase().trim());
+                    const isSignalData = headers.includes('designation of stop signal') || 
+                                        headers.includes('type') || 
+                                        headers.includes('latitude') || 
+                                        headers.includes('longitude');
+                    
+                    if (!isSignalData) {
+                        throw new Error('CSV does not appear to be signal data.');
+                    }
+                    
+                    // Success! Set the global signalData variable
+                    signalData = result.data;
+                    
+                    statusEl.textContent = `✓ Loaded ${signalData.length} signal records automatically`;
+                    statusEl.className = 'mt-2 text-xs text-green-600';
+                    
+                    // Show route selection section since signal data is now available
+                    routeSelectionSection.classList.remove('hidden');
+                    
+                    return true;
+                    
+                } catch (error) {
+                    console.error('Error loading signal data:', error);
+                    statusEl.innerHTML = `
+                        <span class="text-red-600">⚠ Could not auto-load signal data: ${error.message}</span><br>
+                        <span class="text-gray-600">Please upload the Signal CSV file manually using the file upload area above.</span>
+                    `;
+                    statusEl.className = 'mt-2 text-xs';
+                    return false;
+                }
+            }
 
             const fileInput = document.getElementById('file-input');
             const fileDropArea = document.getElementById('file-drop-area');
@@ -1861,8 +1959,7 @@
             const signalAnalysisContainer = document.getElementById('signal-analysis-container');
             const signalTableBody = document.getElementById('signal-table-body');
 
-            const syaAnalysisContainer = document.getElementById('sya-analysis-container');
-            const syaTableBody = document.getElementById('sya-table-body');
+
             const bulkMatchContainer = document.getElementById('bulk-match-container');
             const bulkMatchTableBody = document.getElementById('bulk-match-table-body');
 
@@ -1880,92 +1977,15 @@
             // Load route data from CSV
             async function loadRouteData() {
                 try {
-                    // Embedded route data from RoutePaths.csv
-                    const routeCSV = `Route,Path,SectionIds
-MRJ-ASK,MRJ-LD-LWR-UBL-ASK,"35,34,33,11"
-MRJ-GTL,MRJ-LD-LWR-UBL-GDG-TLKL-GIN-HPT-TNGL-BAY-GTL,"35,34,33,0,1,2,3,4,5,6"
-MRJ-SUR,MRJ-LD-LWR-UBL-GDG-BGK-HG-SUR,"35,34,33,0,12,13,14"
-MRJ-WADI,MRJ-LD-LWR-UBL-GDG-BGK-HG-WADI,"35,34,33,0,12,13,15"
-MRJ-AVC,MRJ-LD-LWR-UBL-GDG-TLKL-GIN-HPT-VC-AVC,"35,34,33,0,1,2,3,16,17"
-MRJ-KHTI,MRJ-LD-LWR-UBL-GDG-TLKL-KHTI,"35,34,33,0,1,23"
-MRJ-SNNR,MRJ-LD-LWR-UBL-GDG-TLKL-GIN-SNNR,"35,34,33,0,1,2,24"
-MRJ-VSG,MRJ-LD-QLM-VSG,"35,52,54"
-ASK-MRJ,ASK-UBL-LWR-LD-MRJ,"37,7,8,9"
-ASK-GTL,ASK-UBL-GDG-TLKL-GIN-HPT-TNGL-BAY-GTL,"37,0,1,2,3,4,5,6"
-ASK-SUR,ASK-UBL-GDG-BGK-HG-SUR,"37,0,12,13,14"
-ASK-WADI,ASK-UBL-GDG-BGK-HG-WADI,"37,0,12,13,15"
-ASK-AVC,ASK-UBL-GDG-TLKL-GIN-HPT-VC-AVC,"37,0,1,2,3,16,17"
-ASK-KHTI,ASK-UBL-GDG-TLKL-KHTI,"37,0,1,23"
-ASK-SNNR,ASK-UBL-GDG-TLKL-GIN-SNNR,"37,0,1,2,24"
-ASK-VSG,ASK-UBL-LWR-LD-QLM-VSG,"37,7,8,52,54"
-GTL-MRJ,GTL-BAY-TNGL-HPT-GIN-TLKL-GDG-UBL-LWR-LD-MRJ,"32,31,30,29,28,27,26,7,8,9"
-GTL-ASK,GTL-BAY-TNGL-HPT-GIN-TLKL-GDG-UBL-ASK,"32,31,30,29,28,27,26,11"
-GTL-SUR,GTL-BAY-TNGL-HPT-GIN-TLKL-GDG-BGK-HG-SUR,"32,31,30,29,28,27,12,13,14"
-GTL-WADI,GTL-BAY-TNGL-HPT-GIN-TLKL-GDG-BGK-HG-WADI,"32,31,30,29,28,27,12,13,15"
-GTL-AVC,GTL-BAY-TNGL-HPT-VC-AVC,"32,31,30,16,17"
-GTL-KHTI,GTL-BAY-TNGL-HPT-GIN-TLKL-KHTI,"32,31,30,29,28,23"
-GTL-SNNR,GTL-BAY-TNGL-HPT-GIN-SNNR,"32,31,30,29,24"
-GTL-VSG,GTL-BAY-TNGL-HPT-GIN-TLKL-GDG-UBL-LWR-LD-QLM-VSG,"32,31,30,29,28,27,26,7,8,52,54"
-SUR-MRJ,SUR-HG-BGK-GDG-UBL-LWR-LD-MRJ,"40,39,38,26,7,8,9"
-SUR-ASK,SUR-HG-BGK-GDG-UBL-ASK,"40,39,38,26,11"
-SUR-GTL,SUR-HG-BGK-GDG-TLKL-GIN-HPT-TNGL-BAY-GTL,"40,39,38,1,2,3,4,5,6"
-SUR-WADI,SUR-HG-WADI,"40,15"
-SUR-AVC,SUR-HG-BGK-GDG-TLKL-GIN-HPT-VC-AVC,"40,39,38,1,2,3,16,17"
-SUR-KHTI,SUR-HG-BGK-GDG-TLKL-KHTI,"40,39,38,1,23"
-SUR-SNNR,SUR-HG-BGK-GDG-TLKL-GIN-SNNR,"40,39,38,1,2,24"
-SUR-VSG,SUR-HG-BGK-GDG-UBL-LWR-LD-QLM-VSG,"40,39,38,26,7,8,52,54"
-WADI-MRJ,WADI-HG-BGK-GDG-UBL-LWR-LD-MRJ,"41,39,38,26,7,8,9"
-WADI-ASK,WADI-HG-BGK-GDG-UBL-ASK,"41,39,38,26,11"
-WADI-GTL,WADI-HG-BGK-GDG-TLKL-GIN-HPT-TNGL-BAY-GTL,"41,39,38,1,2,3,4,5,6"
-WADI-SUR,WADI-HG-SUR,"41,14"
-WADI-AVC,WADI-HG-BGK-GDG-TLKL-GIN-HPT-VC-AVC,"41,39,38,1,2,3,16,17"
-WADI-KHTI,WADI-HG-BGK-GDG-TLKL-KHTI,"41,39,38,1,23"
-WADI-SNNR,WADI-HG-BGK-GDG-TLKL-GIN-SNNR,"41,39,38,1,2,24"
-WADI-VSG,WADI-HG-BGK-GDG-UBL-LWR-LD-QLM-VSG,"41,39,38,26,7,8,52,54"
-AVC-MRJ,AVC-VC-HPT-GIN-TLKL-GDG-UBL-LWR-LD-MRJ,"43,42,29,28,27,26,7,8,9"
-AVC-ASK,AVC-VC-HPT-GIN-TLKL-GDG-UBL-ASK,"43,42,29,28,27,26,11"
-AVC-GTL,AVC-VC-HPT-TNGL-BAY-GTL,"43,42,4,5,6"
-AVC-SUR,AVC-VC-HPT-GIN-TLKL-GDG-BGK-HG-SUR,"43,42,29,28,27,12,13,14"
-AVC-WADI,AVC-VC-HPT-GIN-TLKL-GDG-BGK-HG-WADI,"43,42,29,28,27,12,13,15"
-AVC-KHTI,AVC-VC-HPT-GIN-TLKL-KHTI,"43,42,29,28,23"
-AVC-SNNR,AVC-VC-HPT-GIN-SNNR,"43,42,29,24"
-AVC-VSG,AVC-VC-HPT-GIN-TLKL-GDG-UBL-LWR-LD-QLM-VSG,"43,42,29,28,27,26,7,8,52,54"
-KHTI-MRJ,KHTI-TLKL-GDG-UBL-LWR-LD-MRJ,"49,27,26,7,8,9"
-KHTI-ASK,KHTI-TLKL-GDG-UBL-ASK,"49,27,26,11"
-KHTI-GTL,KHTI-TLKL-GIN-HPT-TNGL-BAY-GTL,"49,2,3,4,5,6"
-KHTI-SUR,KHTI-TLKL-GDG-BGK-HG-SUR,"49,27,12,13,14"
-KHTI-WADI,KHTI-TLKL-GDG-BGK-HG-WADI,"49,27,12,13,15"
-KHTI-AVC,KHTI-TLKL-GIN-HPT-VC-AVC,"49,2,3,16,17"
-KHTI-SNNR,KHTI-TLKL-GIN-SNNR,"49,2,24"
-KHTI-VSG,KHTI-TLKL-GDG-UBL-LWR-LD-QLM-VSG,"49,27,26,7,8,52,54"
-SNNR-MRJ,SNNR-GIN-TLKL-GDG-UBL-LWR-LD-MRJ,"50,28,27,26,7,8,9"
-SNNR-ASK,SNNR-GIN-TLKL-GDG-UBL-ASK,"50,28,27,26,11"
-SNNR-GTL,SNNR-GIN-HPT-TNGL-BAY-GTL,"50,3,4,5,6"
-SNNR-SUR,SNNR-GIN-TLKL-GDG-BGK-HG-SUR,"50,28,27,12,13,14"
-SNNR-WADI,SNNR-GIN-TLKL-GDG-BGK-HG-WADI,"50,28,27,12,13,15"
-SNNR-AVC,SNNR-GIN-HPT-VC-AVC,"50,3,16,17"
-SNNR-KHTI,SNNR-GIN-TLKL-KHTI,"50,28,23"
-SNNR-VSG,SNNR-GIN-TLKL-GDG-UBL-LWR-LD-QLM-VSG,"50,28,27,26,7,8,52,54"
-VSG-MRJ,VSG-QLM-LD-MRJ,"55,53,9"
-VSG-ASK,VSG-QLM-LD-LWR-UBL-ASK,"55,53,34,33,11"
-VSG-GTL,VSG-QLM-LD-LWR-UBL-GDG-TLKL-GIN-HPT-TNGL-BAY-GTL,"55,53,34,33,0,1,2,3,4,5,6"
-VSG-SUR,VSG-QLM-LD-LWR-UBL-GDG-BGK-HG-SUR,"55,53,34,33,0,12,13,14"
-VSG-WADI,VSG-QLM-LD-LWR-UBL-GDG-BGK-HG-WADI,"55,53,34,33,0,12,13,15"
-VSG-AVC,VSG-QLM-LD-LWR-UBL-GDG-TLKL-GIN-HPT-VC-AVC,"55,53,34,33,0,1,2,3,16,17"
-VSG-KHTI,VSG-QLM-LD-LWR-UBL-GDG-TLKL-KHTI,"55,53,34,33,0,1,23"
-VSG-SNNR,VSG-QLM-LD-LWR-UBL-GDG-TLKL-GIN-SNNR,"55,53,34,33,0,1,2,24"
-UBL-SUR,UBL-GDG-BGK-HG-SUR,"0,12,13,14"
-SUR-UBL,SUR-HG-BGK-GDG-UBL,"40,39,38,26"
-UBL-GTL,UBL-GDG-TLKL-GIN-HPT-TNGL-BAY-GTL,"0,1,2,3,4,5,6"
-GTL-UBL,GTL-BAY-TNGL-HPT-GIN-TLKL-GDG-UBL,"32,31,30,29,28,27,26"
-UBL-ASK,UBL-ASK,"11"
-ASK-UBL,ASK-UBL,"37"
-UBL-MRJ,UBL-LWR-LD-MRJ,"7,8,9"
-MRJ-UBL,MRJ-LD-LWR-UBL,"35,34,33"
-UBL-VSG,UBL-LWR-LD-QLM-VSG,"7,8,52,54"
-VSG-UBL,VSG-QLM-LD-LWR-UBL,"55,53,34,33"
-SUR-HPT,SUR-HG-BGK-GDG-TLKL-GIN-HPT,"40,39,38,1,2,3"
-HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
+                    // Fetch route data from GitHub
+                    const routeCSVUrl = 'https://raw.githubusercontent.com/SanthoshBanala/SPM-OFFICE/refs/heads/main/RoutePaths.csv';
+                    const response = await fetch(routeCSVUrl);
+                    
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch route data: ${response.status} ${response.statusText}`);
+                    }
+                    
+                    const routeCSV = await response.text();
 
                     const result = Papa.parse(routeCSV, {
                         header: true,
@@ -2090,6 +2110,11 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
 
             // Load route data on page load
             loadRouteData();
+            
+            // Auto-load signal data from GitHub on page load
+            (async () => {
+                await loadSignalDataFromGDrive(SIGNAL_DATA_URL);
+            })();
 
             fileClickTrigger.addEventListener('click', () => fileInput.click());
             fileInput.addEventListener('change', (event) => handleFileSelect(event.target.files));
@@ -2258,22 +2283,43 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
             
             runAnalysisBtn.addEventListener('click', runAnalysis);
 
-            // Auto-format time inputs to HH:MM:SS
-            function autoFormatTime(input) {
-                let value = input.value.replace(/\D/g, '');
-                if (value.length > 6) value = value.slice(0, 6);
+            // Auto-format date-time inputs to DD-MM-YYYY HH:MM:SS
+            function autoFormatDateTime(input) {
+                let value = input.value.replace(/\D/g, ''); // Remove non-digits
+                if (value.length > 14) value = value.slice(0, 14); // Max 14 digits
                 
+                let formatted = '';
+                
+                // DD
+                if (value.length >= 1) {
+                    formatted += value.slice(0, 2);
+                }
+                // -MM
                 if (value.length >= 3) {
-                    value = value.slice(0, 2) + ':' + value.slice(2);
+                    formatted += '-' + value.slice(2, 4);
                 }
-                if (value.length >= 6) {
-                    value = value.slice(0, 5) + ':' + value.slice(5);
+                // -YYYY
+                if (value.length >= 5) {
+                    formatted += '-' + value.slice(4, 8);
                 }
-                input.value = value;
+                // (space)HH
+                if (value.length >= 9) {
+                    formatted += ' ' + value.slice(8, 10);
+                }
+                // :MM
+                if (value.length >= 11) {
+                    formatted += ':' + value.slice(10, 12);
+                }
+                // :SS
+                if (value.length >= 13) {
+                    formatted += ':' + value.slice(12, 14);
+                }
+                
+                input.value = formatted;
             }
 
-            startTimeOverride.addEventListener('input', () => autoFormatTime(startTimeOverride));
-            endTimeOverride.addEventListener('input', () => autoFormatTime(endTimeOverride));
+            startTimeOverride.addEventListener('input', () => autoFormatDateTime(startTimeOverride));
+            endTimeOverride.addEventListener('input', () => autoFormatDateTime(endTimeOverride));
 
             function showMessage(title, content) {
                 messageTitle.textContent = title;
@@ -2396,7 +2442,86 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                 }
 
                 console.log('Populate complete. Total rows now:', tbody.querySelectorAll('tr').length);
+
+                // ---- Also populate Station Entry Speeds table ----
+                populateStationEntrySpeeds(selectedStations);
+
                 showMessage('Success', `Table populated with ${selectedStations.length} station(s) from Brake Analysis`);
+            }
+
+            function populateStationEntrySpeeds(stations) {
+                const seTable = document.getElementById('stationEntrySpeedTable');
+                if (!seTable || !stations || stations.length === 0) return;
+
+                const seTbody = seTable.querySelector('tbody');
+                if (!seTbody) return;
+
+                // Clear all rows except the first
+                const existingRows = seTbody.querySelectorAll('tr');
+                existingRows.forEach((row, idx) => { if (idx > 0) row.remove(); });
+
+                // Fill first row with first station
+                const firstRow = seTbody.querySelector('tr');
+                if (firstRow) {
+                    const inputs = firstRow.querySelectorAll('input[type="text"]');
+                    if (inputs.length >= 7) {
+                        inputs[0].value = stations[0]; // Station
+                        inputs[1].value = '';           // Time
+                        inputs[2].value = '';           // ML/LL
+                        inputs[3].value = '';           // Reduced Speed
+                        inputs[4].value = '';           // Speed at YY
+                        inputs[5].value = '';           // Speed at Y
+                        inputs[6].value = 'NIL';        // Remarks
+                    }
+                }
+
+                // Add rows for remaining stations
+                for (let i = 1; i < stations.length; i++) {
+                    const newRow = document.createElement('tr');
+                    newRow.className = 'text-center';
+                    newRow.innerHTML = `
+                        <td class="py-1 px-1 text-center"><div class="flex justify-center"><input type="text" value="${stations[i]}" class="w-full border rounded px-2 py-1 text-sm text-center" /></div></td>
+                        <td class="py-1 px-1 text-center"><div class="flex justify-center"><input type="text" class="w-full border rounded px-2 py-1 text-sm text-center" /></div></td>
+                        <td class="py-1 px-1 text-center"><div class="flex justify-center"><input type="text" class="w-full border rounded px-2 py-1 text-sm text-center" /></div></td>
+                        <td class="py-1 px-1 text-center"><div class="flex justify-center"><input type="text" class="w-full border rounded px-2 py-1 text-sm text-center" /></div></td>
+                        <td class="py-1 px-1 text-center"><div class="flex justify-center"><input type="text" class="w-full border rounded px-2 py-1 text-sm text-center" /></div></td>
+                        <td class="py-1 px-1 text-center"><div class="flex justify-center"><input type="text" class="w-full border rounded px-2 py-1 text-sm text-center" /></div></td>
+                        <td class="py-1 px-1 text-center"><div class="flex justify-center"><input type="text" value="NIL" class="w-full border rounded px-2 py-1 text-sm text-center" /></div></td>
+                        <td class="py-3 px-3">
+                            <div class="flex justify-center items-center space-x-2">
+                                <button type="button" class="add-row text-green-600 text-xl font-bold hover:text-green-800">+</button>
+                                <button type="button" class="remove-row text-red-600 text-xl font-bold hover:text-red-800">&minus;</button>
+                            </div>
+                        </td>
+                    `;
+                    seTbody.appendChild(newRow);
+
+                    // Attach +/- listeners
+                    const addBtn = newRow.querySelector('.add-row');
+                    const removeBtn = newRow.querySelector('.remove-row');
+                    if (addBtn) addBtn.addEventListener('click', function() {
+                        const cloned = this.closest('tr').cloneNode(true);
+                        this.closest('tr').after(cloned);
+                        attachRowButtonListeners(cloned);
+                    });
+                    if (removeBtn) removeBtn.addEventListener('click', function() {
+                        this.closest('tr').remove();
+                    });
+                }
+
+                // Re-attach listeners to first row buttons
+                if (firstRow) {
+                    const addBtnFirst = firstRow.querySelector('.add-row');
+                    const removeBtnFirst = firstRow.querySelector('.remove-row');
+                    if (addBtnFirst) addBtnFirst.addEventListener('click', function() {
+                        const cloned = this.closest('tr').cloneNode(true);
+                        this.closest('tr').after(cloned);
+                        attachRowButtonListeners(cloned);
+                    });
+                    if (removeBtnFirst) removeBtnFirst.addEventListener('click', function() {
+                        this.closest('tr').remove();
+                    });
+                }
             }
 
             function attachRowButtonListeners(row) {
@@ -2503,6 +2628,18 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                 return `${y}-${mo}-${d} ${h}:${m}:${s}`;
             }
 
+            // *** FORMAT DATE+TIME as DD-MM-YYYY HH:MM:SS ***
+            function formatDateTimeCustom(date) {
+                if (!date || isNaN(date.getTime())) return null;
+                const d = String(date.getDate()).padStart(2, '0');
+                const mo = String(date.getMonth() + 1).padStart(2, '0');
+                const y = date.getFullYear();
+                const h = String(date.getHours()).padStart(2, '0');
+                const m = String(date.getMinutes()).padStart(2, '0');
+                const s = String(date.getSeconds()).padStart(2, '0');
+                return `${d}-${mo}-${y} ${h}:${m}:${s}`;
+            }
+
             function handleFileSelect(files) {
                 if (files.length === 0 || files.length > 6) {
                     return showMessage("File Error", "Please upload 1 to 6 files.");
@@ -2516,10 +2653,13 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                 tripDetailsSection.classList.add('hidden');
                 signalAnalysisContainer.classList.add('hidden');
                 directionSelectWrapper.classList.add('hidden');
-                syaAnalysisContainer.classList.add('hidden');
                 bulkMatchContainer.classList.add('hidden');
 
-                originalRtisData = null; oheData = null; cautionData = null; signalData = null; syaData = null; bulkData = null;
+                // Preserve signalData if loaded from Google Drive and no local signal file is uploaded
+                const preserveGdriveSignal = signalData && signalData.length > 0;
+                originalRtisData = null; cautionData = null; bulkData = null;
+                // Only reset signalData if a new signal file is being uploaded (checked later)
+                let localSignalFileDetected = false;
 
                 const filePromises = Array.from(files).map(file => new Promise((resolve, reject) => {
                     Papa.parse(file, {
@@ -2535,22 +2675,12 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                                 const headers_L1 = (res.data[0] || []).map(h => String(h || '').trim().toLowerCase());
                                 if (headers_L1.includes('logging time') || headers_L1.includes('gps time')) {
                                     fileType = 'rtis';
-                                } else if (headers_L1.includes('ohe mast no')) {
-                                    fileType = 'ohe';
                                 } else if (headers_L1.includes('ohe mast from')) {
                                     fileType = 'caution';
                                 } else if (headers_L1.includes('designation of stop signal') || headers_L1.includes('type')) {
                                     fileType = 'signal';
                                 } else if (headers_L1.includes('device id') && headers_L1.includes('signal time') && headers_L1.includes('conclusion')) {
                                     fileType = 'bulk'; // Identified Bulk Violation Report
-                                }
-
-                                // Check row 5 (index 4) for SYA
-                                if (fileType === 'unknown' && res.data.length >= 5) {
-                                    const headers_L5 = (res.data[4] || []).map(h => String(h || '').trim().toLowerCase());
-                                    if (headers_L5.includes('station') && headers_L5.includes('occured time')) {
-                                        fileType = 'sya';
-                                    }
                                 }
                             } catch (e) {
                                 console.error("Error parsing headers: ", e);
@@ -2568,11 +2698,21 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
 
                 Promise.all(filePromises).then(fileTypes => {
                     const rtisFileObj = fileTypes.find(f => f.type === 'rtis');
-                    const oheFile = fileTypes.find(f => f.type === 'ohe')?.file;
                     const cautionFile = fileTypes.find(f => f.type === 'caution')?.file;
                     const signalFile = fileTypes.find(f => f.type === 'signal')?.file;
-                    const syaFile = fileTypes.find(f => f.type === 'sya')?.file;
                     const bulkFile = fileTypes.find(f => f.type === 'bulk')?.file;
+                    
+                    // If a local signal file is uploaded, it will override Google Drive signal data
+                    if (signalFile) {
+                        localSignalFileDetected = true;
+                        signalData = null; // Reset to load from local file
+                        // Update Google Drive status to indicate override
+                        const gdriveStatus = document.getElementById('gdrive-signal-status');
+                        if (gdriveStatus) {
+                            gdriveStatus.textContent = 'Signal data will be loaded from local file (overrides Google Drive data)';
+                            gdriveStatus.className = 'mt-2 text-xs text-yellow-600';
+                        }
+                    }
 
                     if (!rtisFileObj) {
                         loadingContainer.classList.add('hidden');
@@ -2585,21 +2725,15 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                     // Create a list of promises for *standard* files
                     let standardFilePromises = [];
                     if (rtisFile) standardFilePromises.push(parseCSV(rtisFile).then(res => ({ name: 'rtis', ...res })));
-                    if (oheFile) standardFilePromises.push(parseCSV(oheFile).then(res => ({ name: 'ohe', ...res })));
                     if (cautionFile) standardFilePromises.push(parseCSV(cautionFile).then(res => ({ name: 'caution', ...res })));
                     if (signalFile) standardFilePromises.push(parseCSV(signalFile).then(res => ({ name: 'signal', ...res })));
                     if (bulkFile) standardFilePromises.push(parseCSV(bulkFile).then(res => ({ name: 'bulk', ...res })));
 
-                    // Create a separate promise for the *SYA* file
                     let allPromises = standardFilePromises;
-                    if (syaFile) {
-                        allPromises.push(parseSyaCSV(syaFile).then(res => ({ name: 'sya', ...res })));
-                    }
 
                     Promise.all(allPromises)
                         .then(results => {
                             headerList.innerHTML = '';
-                            let syaFileLoaded = false;
 
                             results.forEach((result, index) => {
                                 const fileType = result.name;
@@ -2608,19 +2742,18 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                                 if (fileType === 'rtis') {
                                     originalRtisData = result.data;
                                     headerList.innerHTML += `<li><b>RTIS:</b> ${headersStr}</li>`;
-                                } else if (fileType === 'ohe') {
-                                    oheData = result.data;
-                                    headerList.innerHTML += `<li><b>OHE:</b> ${headersStr}</li>`;
                                 } else if (fileType === 'caution') {
                                     cautionData = result.data;
                                     headerList.innerHTML += `<li><b>Caution:</b> ${headersStr}</li>`;
                                 } else if (fileType === 'signal') {
                                     signalData = result.data;
-                                    headerList.innerHTML += `<li><b>Signal:</b> ${headersStr}</li>`;
-                                } else if (fileType === 'sya') {
-                                    syaData = result.data;
-                                    headerList.innerHTML += `<li><b>Single Yellow:</b> ${headersStr}</li>`;
-                                    if (syaData && syaData.length > 0) syaFileLoaded = true;
+                                    headerList.innerHTML += `<li><b>Signal (Local):</b> ${headersStr}</li>`;
+                                    // Update Google Drive status
+                                    const gdriveStatus = document.getElementById('gdrive-signal-status');
+                                    if (gdriveStatus) {
+                                        gdriveStatus.textContent = `✓ Using local signal file (${signalData.length} records)`;
+                                        gdriveStatus.className = 'mt-2 text-xs text-blue-600';
+                                    }
                                 } else if (fileType === 'bulk') {
                                     bulkData = result.data;
                                     headerList.innerHTML += `<li><b>Bulk Violations:</b> ${headersStr}</li>`;
@@ -2632,15 +2765,17 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                             loadingContainer.classList.add('hidden');
                             stationSelectionSection.classList.remove('hidden');
                             
+                            // If signal data exists from Google Drive and no local signal file was loaded, show in header list
+                            if (signalData && signalData.length > 0 && !localSignalFileDetected) {
+                                const signalHeaders = Object.keys(signalData[0]).join(', ');
+                                headerList.innerHTML += `<li><b>Signal:</b> ${signalHeaders}</li>`;
+                            }
+                            
                             // Show route selection section if signal file is loaded
                             if (signalData && signalData.length > 0) {
                                 routeSelectionSection.classList.remove('hidden');
                             } else {
                                 routeSelectionSection.classList.add('hidden');
-                            }
-                            
-                            if (!syaFileLoaded && syaFile) {
-                                showMessage("SYA File Warning", "A SYA file was detected, but no data was successfully parsed. Check the file format.");
                             }
 
                         }).catch(err => {
@@ -2764,15 +2899,15 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                 let actualStartIndex = startIndex;
 
                 if (startTimeOverrideInput) {
-                    // User provided custom time, find the data point matching this time
+                    // User provided custom date-time, find the data point matching this time
                     const timeKey = findKey(originalRtisData[0], ['Logging Time']);
                     const gpsTimeKey = findKey(originalRtisData[0], ['Gps Time']);
                     
-                    // Find the row in the dropdown range that matches the custom time
+                    // Find the row in the dropdown range that matches the custom date-time
                     let foundIndex = -1;
                     for (let i = startIndex; i <= endIndex; i++) {
                         const time = parseTimestamp(originalRtisData[i][gpsTimeKey], originalRtisData[i][timeKey]);
-                        const timeString = formatTime(time);
+                        const timeString = formatDateTimeCustom(time);
                         if (timeString === startTimeOverrideInput) {
                             foundIndex = i;
                             break;
@@ -2780,7 +2915,7 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                     }
 
                     if (foundIndex === -1) {
-                        return showMessage('Error', `Start time ${startTimeOverrideInput} not found in the selected range. Please check the time format (HH:MM:SS) and station range.`);
+                        return showMessage('Error', `Start time ${startTimeOverrideInput} not found in the selected range. Please check the format (DD-MM-YYYY HH:MM:SS) and station range.`);
                     }
 
                     actualStartIndex = foundIndex;
@@ -2791,15 +2926,15 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                 let actualEndIndex = endIndex;
 
                 if (endTimeOverrideInput) {
-                    // User provided custom time, find the data point matching this time
+                    // User provided custom date-time, find the data point matching this time
                     const timeKey = findKey(originalRtisData[0], ['Logging Time']);
                     const gpsTimeKey = findKey(originalRtisData[0], ['Gps Time']);
                     
-                    // Find the row in the dropdown range that matches the custom time
+                    // Find the row in the dropdown range that matches the custom date-time
                     let foundIndex = -1;
                     for (let i = endIndex; i >= startIndex; i--) {
                         const time = parseTimestamp(originalRtisData[i][gpsTimeKey], originalRtisData[i][timeKey]);
-                        const timeString = formatTime(time);
+                        const timeString = formatDateTimeCustom(time);
                         if (timeString === endTimeOverrideInput) {
                             foundIndex = i;
                             break;
@@ -2807,7 +2942,7 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                     }
 
                     if (foundIndex === -1) {
-                        return showMessage('Error', `End time ${endTimeOverrideInput} not found in the selected range. Please check the time format (HH:MM:SS) and station range.`);
+                        return showMessage('Error', `End time ${endTimeOverrideInput} not found in the selected range. Please check the format (DD-MM-YYYY HH:MM:SS) and station range.`);
                     }
 
                     actualEndIndex = foundIndex;
@@ -2825,31 +2960,6 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                 outputSections.classList.add('hidden');
 
                 setTimeout(() => main(rtisData, selectedDirection), 50);
-            }
-
-            function parseSyaCSV(file) {
-                return new Promise((resolve, reject) => {
-                    Papa.parse(file, {
-                        header: false,
-                        skipEmptyLines: false,
-                        dynamicTyping: false,
-                        complete: res => {
-                            try {
-                                const allRows = res.data;
-                                if (allRows.length < 6) return resolve({ headers: [], data: [] });
-                                const headerRow = allRows[4].map(h => String(h || '').trim());
-                                const dataRows = allRows.slice(5);
-                                const jsonData = dataRows.map(row => {
-                                    const obj = {};
-                                    headerRow.forEach((key, index) => { obj[key] = row[index] || null; });
-                                    return obj;
-                                }).filter(obj => obj["SL.No"]);
-                                resolve({ headers: headerRow, data: jsonData });
-                            } catch (e) { reject(e); }
-                        },
-                        error: err => reject(err)
-                    });
-                });
             }
 
             function parseCSV(file) {
@@ -2978,21 +3088,6 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                 return new Date(y, m - 1, d, h, min, s);
             }
 
-            function parseSyaTimestamp(timestampStr) {
-                if (!timestampStr) return new Date('invalid');
-                const parts = timestampStr.split(' ');
-                if (parts.length < 2) return new Date('invalid');
-                const datePart = parts[0];
-                const timePartFull = parts[1];
-                const dateMatch = datePart.match(/(\d{2})\/(\d{2})\/(\d{4})/); // MM/DD/YYYY
-                if (!dateMatch) return new Date('invalid');
-                const timeParts = timePartFull.split(':');
-                if (timeParts.length < 3) return new Date('invalid');
-                const [, month, day, year] = dateMatch;
-                const [hours, minutes, seconds] = timeParts;
-                return new Date(year, month - 1, day, hours, minutes, seconds);
-            }
-
             function normalizeStationCode(stationStr) {
                 if (!stationStr) return '';
                 return String(stationStr).split('_')[0].split('-')[0].trim();
@@ -3032,73 +3127,26 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                 return bulkLookup;
             }
 
-            function processSyaData(syaData, selectedDirection) {
-                const syaLookup = new Map();
-                if (!syaData || syaData.length === 0) return syaLookup;
-
-                const stationKey = findKey(syaData[0], ['STATION']);
-                const infoKey = findKey(syaData[0], ['INFORMATION']);
-                const timeKey = findKey(syaData[0], ['OCCURED TIME']);
-
-                if (!stationKey || !infoKey || !timeKey) {
-                    showMessage("SYA File Error", "Could not find required columns: STATION, INFORMATION, or OCCURED TIME.");
-                    return syaLookup;
-                }
-
-                const directionPattern = `\\(${selectedDirection}\\s?HOME\\)`;
-                const directionRegex = new RegExp(directionPattern, 'i');
-
-                syaData.forEach(row => {
-                    const info = String(row[infoKey] || '');
-                    if (!directionRegex.test(info)) return;
-
-                    const station = normalizeStationCode(row[stationKey]);
-                    if (!station) return;
-
-                    const timeStr = String(row[timeKey] || '');
-                    const parsedDate = parseSyaTimestamp(timeStr);
-                    if (isNaN(parsedDate.getTime())) return;
-
-                    const timeOnlyKey = formatTime(parsedDate);
-                    if (!timeOnlyKey) return;
-
-                    const key = station + '_' + timeOnlyKey;
-                    syaLookup.set(key, true);
-                });
-                return syaLookup;
-            }
-
             function main(rtisData, selectedDirection) {
                 try {
-                    speedViolations = []; brakingExceptions = []; allLabels = []; allSpeedData = []; allMaxSpeedData = []; allTimestamps = []; allLocations = []; signalEvents = []; syaMatchEvents = []; syaPlotData = []; bulkMatchEvents = [];
+                    speedViolations = []; brakingExceptions = []; allLabels = []; allSpeedData = []; allMaxSpeedData = []; allTimestamps = []; allLocations = []; signalEvents = []; bulkMatchEvents = [];
 
                     magnifiedChartContainer.classList.add('hidden');
                     signalAnalysisContainer.classList.add('hidden');
-                    syaAnalysisContainer.classList.add('hidden');
                     bulkMatchContainer.classList.add('hidden');
 
                     let cautionSections = [];
-                    const fullAnalysis = oheData && oheData.length > 0 && cautionData && cautionData.length > 0;
+                    const fullAnalysis = cautionData && cautionData.length > 0;
                     const signalAnalysis = signalData && signalData.length > 0;
-                    const syaAnalysis = syaData && syaData.length > 0 && selectedDirection;
                     const bulkAnalysis = bulkData && bulkData.length > 0;
 
                     let bulkLookup = new Map();
-                    let syaLookup = new Map();
 
                     if (fullAnalysis) {
                         try {
-                            cautionSections = processCautionData(cautionData, oheData);
+                            cautionSections = processCautionData(cautionData);
                         } catch (e) {
                             showMessage("Caution Processing Error", e.message);
-                        }
-                    }
-
-                    if (syaAnalysis) {
-                        try {
-                            syaLookup = processSyaData(syaData, selectedDirection);
-                        } catch (e) {
-                            showMessage("SYA Processing Error", e.message);
                         }
                     }
 
@@ -3125,7 +3173,9 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                     rtisData.forEach((row, index) => {
                         const lat = parseFloat(row[latKey]);
                         const lon = parseFloat(row[lonKey]);
-                        const actualSpeed = parseFloat(row[speedKey]);
+                        let actualSpeed = parseFloat(row[speedKey]);
+                        // Set speeds less than 0.8 km/h to 0 km/h
+                        if (actualSpeed < 0.8) actualSpeed = 0;
 
                         const logTime = parseTimestamp(row[gpsTimeKey], row[timeKey]);
 
@@ -3173,18 +3223,7 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                         }
                         allLocations.push({ lat, lon, speed: actualSpeed, station: row[stationKey], time: logTime, point: turf.point([lon, lat]), distFromPrev: distFromPrev });
 
-                        // SYA Matching
-                        let isSyaEvent = false;
                         const stationCode = normalizeStationCode(row[stationKey]);
-                        if (syaAnalysis && timeLabel) {
-                            const rtisKey = stationCode + '_' + timeLabel;
-                            if (syaLookup.has(rtisKey)) {
-                                syaMatchEvents.push({ station: stationCode, time: timeLabel, speed: actualSpeed });
-                                syaLookup.delete(rtisKey);
-                                isSyaEvent = true;
-                            }
-                        }
-                        syaPlotData.push(isSyaEvent ? actualSpeed : null);
 
                         // Bulk Violation Matching
                         if (bulkAnalysis && deviceIdKey) {
@@ -3216,7 +3255,6 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                         displaySignalEvents(signalEvents);
                     }
 
-                    if (syaAnalysis) displaySyaEvents(syaMatchEvents);
                     if (bulkAnalysis) displayBulkMatches(bulkMatchEvents);
 
                     plotFullChart(fullAnalysis);
@@ -3248,31 +3286,41 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                 speedViolations.push({ ...violation, duration: Math.max(1, duration), distance, breachTime: formatTime(violation.startTime) });
             }
 
-            function processCautionData(cautionData, oheData) {
-                const oheMap = new Map();
-                const oheLatKey = findKey(oheData[0], ['Latitude']);
-                const oheLonKey = findKey(oheData[0], ['Longitude']);
-                const oheMastKey = findKey(oheData[0], ['OHE Mast No']);
-                oheData.forEach(row => {
-                    const mast = String(row[oheMastKey] || '').trim().toLowerCase().replace(/\s/g, '');
-                    if (mast && !isNaN(row[oheLatKey]) && !isNaN(row[oheLonKey])) oheMap.set(mast, { lat: row[oheLatKey], lon: row[oheLonKey] });
-                });
-                const startKey = findKey(cautionData[0], ['OHE mast from']);
-                const endKey = findKey(cautionData[0], ['OHE mast to']);
-                const speedKey = findKey(cautionData[0], ['Speed Limit']);
-                if (!startKey || !endKey || !speedKey) throw new Error("Caution file headers are invalid.");
-                return cautionData.map(row => {
-                    const startCoords = oheMap.get(String(row[startKey] || '').trim().toLowerCase().replace(/\s/g, ''));
-                    const endCoords = oheMap.get(String(row[endKey] || '').trim().toLowerCase().replace(/\s/g, ''));
-                    if (startCoords && endCoords) {
-                        return {
-                            masts: { start: row[startKey], end: row[endKey] },
-                            line: turf.lineString([[startCoords.lon, startCoords.lat], [endCoords.lon, endCoords.lat]]),
-                            speed: row[speedKey]
-                        };
-                    }
-                    return null;
-                }).filter(Boolean);
+            function processCautionData(cautionData) {
+                // Caution data processing requires latitude/longitude coordinates
+                // If caution data has its own coordinates, use them directly
+                const startLatKey = findKey(cautionData[0], ['Start Latitude', 'From Latitude', 'Latitude From']);
+                const startLonKey = findKey(cautionData[0], ['Start Longitude', 'From Longitude', 'Longitude From']);
+                const endLatKey = findKey(cautionData[0], ['End Latitude', 'To Latitude', 'Latitude To']);
+                const endLonKey = findKey(cautionData[0], ['End Longitude', 'To Longitude', 'Longitude To']);
+                const startKey = findKey(cautionData[0], ['OHE mast from', 'From', 'Start']);
+                const endKey = findKey(cautionData[0], ['OHE mast to', 'To', 'End']);
+                const speedKey = findKey(cautionData[0], ['Speed Limit', 'Speed', 'Limit']);
+                
+                if (!speedKey) throw new Error("Caution file is missing Speed Limit column.");
+                
+                // If caution file has direct coordinates
+                if (startLatKey && startLonKey && endLatKey && endLonKey) {
+                    return cautionData.map(row => {
+                        const startLat = parseFloat(row[startLatKey]);
+                        const startLon = parseFloat(row[startLonKey]);
+                        const endLat = parseFloat(row[endLatKey]);
+                        const endLon = parseFloat(row[endLonKey]);
+                        
+                        if (!isNaN(startLat) && !isNaN(startLon) && !isNaN(endLat) && !isNaN(endLon)) {
+                            return {
+                                masts: { start: row[startKey] || 'Start', end: row[endKey] || 'End' },
+                                line: turf.lineString([[startLon, startLat], [endLon, endLat]]),
+                                speed: row[speedKey]
+                            };
+                        }
+                        return null;
+                    }).filter(Boolean);
+                }
+                
+                // Without coordinates, caution processing cannot work
+                console.warn('Caution file does not have coordinate columns. Caution sections will not be applied.');
+                return [];
             }
 
             function findMaxSpeedForPoint(lat, lon, cautionSections) {
@@ -3393,20 +3441,6 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                 });
             }
 
-            function displaySyaEvents(syaEvents) {
-                syaTableBody.innerHTML = '';
-                if (syaEvents.length === 0) {
-                    syaAnalysisContainer.classList.add('hidden');
-                    return;
-                }
-                syaAnalysisContainer.classList.remove('hidden');
-                syaEvents.forEach(ev => {
-                    const row = syaTableBody.insertRow();
-                    row.className = 'bg-white border-b';
-                    row.innerHTML = `<td class="py-1 px-3">${ev.station}</td><td class="py-1 px-3">${ev.time}</td><td class="py-1 px-3">${ev.speed.toFixed(1)}</td>`;
-                });
-            }
-
             function displayBulkMatches(matches) {
                 bulkMatchTableBody.innerHTML = '';
                 if (matches.length === 0) {
@@ -3486,24 +3520,9 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                     );
                 }
 
-                const syaAnalysis = syaData && syaData.length > 0;
-                if (syaAnalysis && syaPlotData) {
-                    datasets.push({
-                        label: 'SYA Event',
-                        data: syaPlotData,
-                        type: 'scatter',
-                        pointRadius: 8,
-                        pointStyle: 'triangle',
-                        backgroundColor: '#f59e0b',
-                        borderColor: '#b45309',
-                        borderWidth: 2,
-                        showLine: false
-                    });
-                }
-
                 const data = { labels: allLabels, datasets };
                 const options = getChartOptions(null, 'Time', 'Speed (KMPH)', true);
-                options.plugins.legend.display = fullAnalysis || (syaAnalysis && syaPlotData && syaPlotData.some(v => v !== null));
+                options.plugins.legend.display = fullAnalysis;
                 options.scales.x.type = 'category';
                 speedChart = plotChart('speedChart', data, options);
             }
@@ -3522,27 +3541,12 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                     );
                 }
 
-                const syaAnalysis = syaData && syaData.length > 0;
-                if (syaAnalysis && syaPlotData) {
-                    datasets.push({
-                        label: 'SYA Event',
-                        data: syaPlotData.slice(0, endIndex),
-                        type: 'scatter',
-                        pointRadius: 8,
-                        pointStyle: 'triangle',
-                        backgroundColor: '#f59e0b',
-                        borderColor: '#b45309',
-                        borderWidth: 2,
-                        showLine: false
-                    });
-                }
-
                 const data = {
                     labels: allLabels.slice(0, endIndex),
                     datasets
                 };
                 const options = getChartOptions(null, 'Time', 'Speed (KMPH)', true);
-                options.plugins.legend.display = fullAnalysis || (syaAnalysis && syaPlotData && syaPlotData.slice(0, endIndex).some(v => v !== null));
+                options.plugins.legend.display = fullAnalysis;
                 options.scales.x.type = 'category';
                 first30MinChart = plotChart('first30MinChart', data, options);
             }
@@ -3706,9 +3710,22 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                             const allLegends = legendContainer.querySelectorAll('.legend-item');
                             const isCurrentlyAllHidden = Array.from(allLegends).every(l => l.classList.contains('striked'));
 
-                            allLegends.forEach(legendItem => {
-                                const clickedIndex = parseInt(legendItem.dataset.datasetIndex);
-                                const dataset = newChart.data.datasets[clickedIndex];
+                            allLegends.forEach((legendItem, legendIndex) => {
+                                // Find the corresponding dataset by position (accounting for signal datasets)
+                                let datasetCount = 0;
+                                let dataset = null;
+                                
+                                for (let i = 0; i < newChart.data.datasets.length; i++) {
+                                    if (!newChart.data.datasets[i].isSignalDataset && !newChart.data.datasets[i].isCommonStarterSignal) {
+                                        if (datasetCount === legendIndex) {
+                                            dataset = newChart.data.datasets[i];
+                                            break;
+                                        }
+                                        datasetCount++;
+                                    }
+                                }
+
+                                if (!dataset) return;
 
                                 if (isCurrentlyAllHidden) {
                                     dataset.hidden = false;
@@ -4137,14 +4154,12 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                 const relevantLabels = [];
                 const relevantSpeedData = [];
                 const relevantMaxSpeedData = [];
-                const relevantSyaData = [];
 
                 for (let i = 0; i < allTimestamps.length; i++) {
                     if (allTimestamps[i].getTime() >= start && allTimestamps[i].getTime() <= end) {
                         relevantLabels.push(allLabels[i]);
                         relevantSpeedData.push(allSpeedData[i]);
                         relevantMaxSpeedData.push(allMaxSpeedData[i]);
-                        if (syaPlotData) relevantSyaData.push(syaPlotData[i]);
                     }
                 }
 
@@ -4152,20 +4167,6 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                     { label: 'Train Speed', data: relevantSpeedData, borderColor: '#2563eb', pointRadius: 1, borderWidth: 2 },
                     { label: 'Permitted Speed', data: relevantMaxSpeedData, borderColor: '#dc2626', stepped: true, pointRadius: 0, borderWidth: 2 }
                 ];
-
-                if (syaData && syaData.length > 0 && relevantSyaData.some(v => v !== null)) {
-                    datasets.push({
-                        label: 'SYA Event',
-                        data: relevantSyaData,
-                        type: 'scatter',
-                        pointRadius: 8,
-                        pointStyle: 'triangle',
-                        backgroundColor: '#f59e0b',
-                        borderColor: '#b45309',
-                        borderWidth: 2,
-                        showLine: false
-                    });
-                }
 
                 const data = {
                     labels: relevantLabels,
@@ -4186,8 +4187,19 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                     const newRow = row.cloneNode(true);
 
                     // Clear input/textarea values in new row
-                    newRow.querySelectorAll('input').forEach(input => input.value = '');
-                    newRow.querySelectorAll('textarea').forEach(t => t.value = '');
+                    const inputs = newRow.querySelectorAll('input');
+                    inputs.forEach(input => input.value = '');
+                    // Set last input to NIL (Remarks column)
+                    if (inputs.length > 0) {
+                        inputs[inputs.length - 1].value = 'NIL';
+                    }
+                    
+                    const textareas = newRow.querySelectorAll('textarea');
+                    textareas.forEach(t => t.value = '');
+                    // Set last textarea to NIL (Remarks column)
+                    if (textareas.length > 0) {
+                        textareas[textareas.length - 1].value = 'NIL';
+                    }
 
                     row.parentNode.insertBefore(newRow, row.nextSibling);
                     return;
@@ -4200,8 +4212,19 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                         row.remove();
                     } else {
                         // If only one row remains, clear inputs instead of removing
-                        row.querySelectorAll('input').forEach(input => input.value = '');
-                        row.querySelectorAll('textarea').forEach(t => t.value = '');
+                        const inputs = row.querySelectorAll('input');
+                        inputs.forEach(input => input.value = '');
+                        // Set last input to NIL (Remarks column)
+                        if (inputs.length > 0) {
+                            inputs[inputs.length - 1].value = 'NIL';
+                        }
+                        
+                        const textareas = row.querySelectorAll('textarea');
+                        textareas.forEach(t => t.value = '');
+                        // Set last textarea to NIL (Remarks column)
+                        if (textareas.length > 0) {
+                            textareas[textareas.length - 1].value = 'NIL';
+                        }
                     }
                 }
             });
@@ -4321,27 +4344,38 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                 const MIN_STOP_DURATION_SECONDS = 10;
                 let stops = [];
                 let potentialStopStartIdx = -1;
+                let potentialStopEndIdx = -1;
 
                 allLocations.forEach((loc, i) => {
                     if (isNaN(loc.time.getTime())) return;
                     const isStopped = loc.speed < STOP_SPEED_THRESHOLD;
                     if (isStopped && potentialStopStartIdx === -1) {
                         potentialStopStartIdx = i;
+                        potentialStopEndIdx = i;
+                    } else if (isStopped && potentialStopStartIdx !== -1) {
+                        // Keep updating the end index to the last stopped point
+                        potentialStopEndIdx = i;
                     } else if (!isStopped && potentialStopStartIdx !== -1) {
-                        const duration = (allLocations[i - 1].time.getTime() - allLocations[potentialStopStartIdx].time.getTime()) / 1000;
+                        const duration = (allLocations[potentialStopEndIdx].time.getTime() - allLocations[potentialStopStartIdx].time.getTime()) / 1000;
                         if (duration >= MIN_STOP_DURATION_SECONDS) {
-                            stops.push({ endIndex: i - 1, station: allLocations[i - 1].station || 'N/A', time: allLocations[i - 1].time });
+                            // Use potentialStopEndIdx which is the last point BEFORE train restarted
+                            stops.push({ endIndex: potentialStopEndIdx, station: allLocations[potentialStopEndIdx].station || 'N/A', time: allLocations[potentialStopEndIdx].time });
                         }
                         potentialStopStartIdx = -1;
+                        potentialStopEndIdx = -1;
                     }
                 });
 
                 if (potentialStopStartIdx !== -1) {
                     const lastIndex = allLocations.length - 1;
                     if (!isNaN(allLocations[lastIndex].time.getTime())) {
-                        const duration = (allLocations[lastIndex].time.getTime() - allLocations[potentialStopStartIdx].time.getTime()) / 1000;
+                        // Update potentialStopEndIdx to last index if still in stopped state
+                        if (potentialStopEndIdx === -1 || allLocations[lastIndex].speed < STOP_SPEED_THRESHOLD) {
+                            potentialStopEndIdx = lastIndex;
+                        }
+                        const duration = (allLocations[potentialStopEndIdx].time.getTime() - allLocations[potentialStopStartIdx].time.getTime()) / 1000;
                         if (duration >= MIN_STOP_DURATION_SECONDS) {
-                            stops.push({ endIndex: lastIndex, station: allLocations[lastIndex].station || 'N/A', time: allLocations[lastIndex].time });
+                            stops.push({ endIndex: potentialStopEndIdx, station: allLocations[potentialStopEndIdx].station || 'N/A', time: allLocations[potentialStopEndIdx].time });
                         }
                     }
                 }
@@ -4349,6 +4383,12 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                 stoppageLegend.innerHTML = '';
                 brakingExceptions = [];
                 stoppingAnalysisStops = stops; // Store stops globally for table population
+
+                // Remove first stop (starting station) as it has no meaningful braking curve
+                if (stops.length > 1) {
+                    stops = stops.slice(1);
+                }
+
                 if (stops.length === 0) {
                     stoppageLegend.innerHTML = 'No significant stops detected.';
                     if (stoppingAnalysisChart) stoppingAnalysisChart.destroy();
@@ -4483,32 +4523,38 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                             signalText = `${nextSignal.station} (${nextSignal.type}) ${Math.round(nextSignal.distance)}m`;
                         }
 
-                        const legendEl = document.createElement('span');
-                        legendEl.className = 'legend-item inline-flex flex-col items-start m-1 px-2 py-0.5 rounded-full text-xs font-medium';
-                        legendEl.style.backgroundColor = `${color}20`;
-                        legendEl.style.color = color;
-                        legendEl.innerHTML = `<div class="legend-item-content"><div class="legend-item-text">${signalText}<br>${formatTime(stop.time)}</div><span class="legend-item-delete" title="Click to delete this dataset">✕</span></div>`;
-                        legendEl.dataset.datasetIndex = datasets.length;
-                        legendEl.title = `${signalText} - Stopped at ${formatTime(stop.time)}`;
-                        stoppageLegend.appendChild(legendEl);
+                        // Check if signal type is "home" or "IBS" - these should go to Home Signals Analysis only
+                        const signalTypeLowerCheck = nextSignal ? nextSignal.type.toLowerCase() : '';
+                        const isHomeOrIBS = signalTypeLowerCheck.includes('home') || signalTypeLowerCheck.includes('ibs');
 
-                        datasets.push({
-                            label: legendLabel, data: stopData, borderColor: color,
-                            borderWidth: 2.5, pointRadius: 0, tension: 0.1, originalBorderWidth: 2.5,
-                            stopIndex: index,
-                            signalInfo: nextSignal,
-                            timeLabel: formatTime(stop.time)
-                        });
+                        // Skip this dataset if distance to next signal is more than 1000m OR if it's a Home/IBS signal
+                        if (!(nextSignal && nextSignal.distance > 1000) && !isHomeOrIBS) {
+                            const legendEl = document.createElement('span');
+                            legendEl.className = 'legend-item inline-flex flex-col items-start m-1 px-2 py-0.5 rounded-full text-xs font-medium';
+                            legendEl.style.backgroundColor = `${color}20`;
+                            legendEl.style.color = color;
+                            legendEl.innerHTML = `<div class="legend-item-content"><div class="legend-item-text">${signalText}<br>${formatTime(stop.time)}</div><span class="legend-item-delete" title="Click to delete this dataset">✕</span></div>`;
+                            legendEl.dataset.datasetIndex = datasets.length;
+                            legendEl.title = `${signalText} - Stopped at ${formatTime(stop.time)}`;
+                            stoppageLegend.appendChild(legendEl);
 
-                        // Add signal markers dataset for this specific stop
-                        if (signalData && signalData.length > 0) {
-                            const signalLatKey = findKey(signalData[0], ['Latitude']);
-                            const signalLonKey = findKey(signalData[0], ['Longitude']);
-                            const stationKey = findKey(signalData[0], ['Station', 'Location']);
-                            const typeKey = findKey(signalData[0], ['Type']);
-                            const stopSigKey = findKey(signalData[0], ['Designation Of Stop Signal']);
-                            const permSigKey = findKey(signalData[0], ['Designation Of Permissive Signal']);
-                            const dirKey = findKey(signalData[0], ['Direction', 'Dir']);
+                            datasets.push({
+                                label: legendLabel, data: stopData, borderColor: color,
+                                borderWidth: 2.5, pointRadius: 0, tension: 0.1, originalBorderWidth: 2.5,
+                                stopIndex: index,
+                                signalInfo: nextSignal,
+                                timeLabel: formatTime(stop.time)
+                            });
+
+                            // Add signal markers dataset for this specific stop
+                            if (signalData && signalData.length > 0) {
+                                const signalLatKey = findKey(signalData[0], ['Latitude']);
+                                const signalLonKey = findKey(signalData[0], ['Longitude']);
+                                const stationKey = findKey(signalData[0], ['Station', 'Location']);
+                                const typeKey = findKey(signalData[0], ['Type']);
+                                const stopSigKey = findKey(signalData[0], ['Designation Of Stop Signal']);
+                                const permSigKey = findKey(signalData[0], ['Designation Of Permissive Signal']);
+                                const dirKey = findKey(signalData[0], ['Direction', 'Dir']);
                             const signalLabelKey = findKey(signalData[0], ['Signal Label']);
 
                             if (signalLatKey && signalLonKey) {
@@ -4587,7 +4633,7 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                             const directionCounts = new Map();
                             for (const sig of rawSignalData) {
                                 const typeLower = sig.signalType.toLowerCase();
-                                if (typeLower.includes('distant') || (typeLower.includes('home') && !typeLower.includes('starter'))) {
+                                if (typeLower.includes('distant') || (typeLower.includes('home') || typeLower.includes('lss cum distant') || typeLower.includes('gs cum distant') && !typeLower.includes('starter'))) {
                                     const dir = sig.direction;
                                     if (dir && dir !== 'N/A') {
                                         directionCounts.set(dir, (directionCounts.get(dir) || 0) + 1);
@@ -4648,13 +4694,15 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
 
                                 // If station was first encountered with Starter (train departing), skip approach signals
                                 if (firstType === 'departure') {
-                                    if ((typeLower.includes('distant') || (typeLower.includes('home') && !typeLower.includes('starter')))) {
+                                    if ((typeLower.includes('distant') || ((typeLower.includes('home') || typeLower.includes('routing')) && !typeLower.includes('starter')))) {
                                         continue;
                                     }
                                 }
 
                                 let signalTypeShort = '';
-                                if (typeLower.includes('home')) {
+                                if (typeLower.includes('routing')) {
+                                    signalTypeShort = 'RHS';
+                                } else if (typeLower.includes('home')) {
                                     signalTypeShort = 'HS';
                                 } else if (typeLower.includes('distant')) {
                                     signalTypeShort = 'DS';
@@ -4675,6 +4723,11 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                                 });
                             }
 
+                            // Keep only the first three crossed signals for this dataset
+                            if (signalMarkersData.length > 3) {
+                                signalMarkersData.splice(3);
+                            }
+
                             if (signalMarkersData.length > 0) {
                                 datasets.push({
                                     label: `Signals for ${stop.station}`,
@@ -4689,6 +4742,7 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                                     stopIndex: index,
                                     isSignalDataset: true
                                 });
+                            }
                             }
                         }
                     }
@@ -4723,7 +4777,7 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                 // Embedded SVG data URLs
                 distantImg.src = 'data:image/svg+xml;base64,' + btoa(`<?xml version="1.0"?><svg width="85" height="407" xmlns="http://www.w3.org/2000/svg"><g class="layer"><title>Layer 1</title><g data-cell-id="1" id="svg_3"><g data-cell-id="8Pz4FwjKvFX1z93biRRz-6" id="svg_4"><g id="svg_5"><path d="m42,405l0,-160" fill="none" id="svg_6" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-width="6"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--5" id="svg_7" transform="matrix(1 0 0 1 0 0)"><g id="svg_8"><ellipse cx="42.5" cy="45.5" fill="#ffff00" id="svg_9" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--6" id="svg_10" transform="matrix(1 0 0 1 0 0)"><g id="svg_11"><ellipse cx="42.5" cy="205.5" fill="#ffff00" id="svg_12" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="gzgGxNtp2YSv-8hrBadr-1" id="svg_13" transform="matrix(1 0 0 1 0 0)"><g id="svg_14" transform="translate(0.5 0.5)"><ellipse cx="42" cy="125" fill="#000000" id="svg_15" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g></g></g></svg>`);
                 homeImg.src = 'data:image/svg+xml;base64,' + btoa(`<?xml version="1.0"?><svg width="297" height="437" xmlns="http://www.w3.org/2000/svg"><g class="layer"><title>Layer 1</title><g id="svg_1" transform="matrix(1 0 0 1 0 0)"><g data-cell-id="1" id="svg_3"><g data-cell-id="8Pz4FwjKvFX1z93biRRz-4" id="svg_4"><g id="svg_5" transform="translate(0.5,0.5)"><ellipse cx="143" cy="153" fill="#000000" id="svg_6" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="8Pz4FwjKvFX1z93biRRz-5" id="svg_7"><g id="svg_8" transform="translate(0.5,0.5)"><ellipse cx="143" cy="233" fill="#ffff00" id="svg_9" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="8Pz4FwjKvFX1z93biRRz-6" id="svg_10"><g id="svg_11"><path d="m143,433l0,-160" fill="none" id="svg_12" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-width="6"/></g></g><g data-cell-id="8Pz4FwjKvFX1z93biRRz-8" id="svg_13"><g id="svg_14"><path d="m293,11.28l-130,101.72" fill="none" id="svg_15" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-width="6"/></g></g><g data-cell-id="8Pz4FwjKvFX1z93biRRz-9" id="svg_16"><g id="svg_17"><path d="m3,3l120,110l-10,-8.28" fill="none" id="svg_18" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-width="6"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--1" id="svg_19"><g id="svg_20" transform="translate(0.5,0.5)"><ellipse cx="143" cy="153" fill="#ffff00" id="svg_21" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--2" id="svg_22"><g id="svg_23" transform="translate(0.5,0.5)"><ellipse cx="143" cy="73" fill="#000000" id="svg_24" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--3" id="svg_25"><g id="svg_26" transform="translate(0.5,0.5)"><ellipse cx="143" cy="233" fill="#000000" id="svg_27" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g></g></g></g></svg>`);
-                starterImg.src = 'data:image/svg+xml;base64,' + btoa(`<?xml version="1.0"?><svg width="85" height="407" xmlns="http://www.w3.org/2000/svg"><g><g data-cell-id="0"><g data-cell-id="1"><g data-cell-id="8Pz4FwjKvFX1z93biRRz-4"><g transform="translate(0.5,0.5)"><ellipse cx="42" cy="122" rx="40" ry="40" fill="#ff0000" stroke="#000000" stroke-width="5"/></g></g><g data-cell-id="8Pz4FwjKvFX1z93biRRz-6"><g><path d="M 42 402 L 42 242" fill="none" stroke="#000000" stroke-width="6" stroke-miterlimit="10"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--5"><g transform="translate(0.5,0.5)"><ellipse cx="42" cy="42" rx="40" ry="40" fill="#000000" stroke="#000000" stroke-width="5"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--6"><g transform="translate(0.5,0.5)"><ellipse cx="42" cy="202" rx="40" ry="40" fill="#000000" stroke="#000000" stroke-width="5"/></g></g></g></g></g></svg>`);
+                starterImg.src = 'data:image/svg+xml;base64,' + btoa(`<?xml version="1.0"?><svg width="85" height="407" xmlns="http://www.w3.org/2000/svg"><g><g data-cell-id="0"><g data-cell-id="1"><g data-cell-id="8Pz4FwjKvFX1z93biRRz-4"><g transform="translate(0.5,0.5)"><ellipse cx="42" cy="122" rx="40" ry="40" fill="#000000" stroke="#000000" stroke-width="5"/></g></g><g data-cell-id="8Pz4FwjKvFX1z93biRRz-6"><g><path d="M 42 402 L 42 242" fill="none" stroke="#000000" stroke-width="6" stroke-miterlimit="10"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--5"><g transform="translate(0.5,0.5)"><ellipse cx="42" cy="42" rx="40" ry="40" fill="#ff0000" stroke="#000000" stroke-width="5"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--6"><g transform="translate(0.5,0.5)"><ellipse cx="42" cy="202" rx="40" ry="40" fill="#000000" stroke="#000000" stroke-width="5"/></g></g></g></g></g></svg>`);
 
                 distantImg.onload = () => { signalImages['distant'] = distantImg; };
                 homeImg.onload = () => { signalImages['home'] = homeImg; };
@@ -4766,14 +4820,14 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                                             const signalType = (datapoint.signalType || '').toLowerCase();
                                             
                                             // Draw custom icon or image based on signal type
-                                            if (signalType.includes('distant') && signalImages['distant']) {
-                                                // Draw Distant signal image
+                                            if ((signalType.includes('distant') || signalType.includes('lss cum distant') || signalType.includes('gs cum distant') || signalType.includes('ib distant') || signalType.includes('inner distant')) && signalImages['distant']) {
+                                                // Draw Distant signal image (DS, LSSDS, GSDS, IB Distant, or IDS)
                                                 ctx.drawImage(signalImages['distant'], x - 6, y - 32, 10, 30);
-                                            } else if (signalType.includes('home') && signalImages['home']) {
-                                                // Draw Home signal image
+                                            } else if ((signalType.includes('home') || signalType.includes('routing')) && signalImages['home']) {
+                                                // Draw Home signal image (HS and RHS)
                                                 ctx.drawImage(signalImages['home'], x - 6, y - 34, 30, 36);
-                                            } else if (signalType.includes('distant')) {
-                                                // Fallback: Draw double yellow circle for Distant signal
+                                            } else if (signalType.includes('distant') || signalType.includes('lss cum distant') || signalType.includes('gs cum distant') || signalType.includes('ib distant') || signalType.includes('inner distant')) {
+                                                // Fallback: Draw double yellow circle for Distant signal (DS, LSSDS, GSDS, IB Distant, or IDS)
                                                 ctx.fillStyle = '#FFD700';
                                                 ctx.beginPath();
                                                 ctx.arc(x - 12, y, 6, 0, 2 * Math.PI);
@@ -4789,8 +4843,8 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                                                 ctx.moveTo(x - 6, y);
                                                 ctx.lineTo(x + 6, y);
                                                 ctx.stroke();
-                                            } else if (signalType.includes('home')) {
-                                                // Fallback: Draw single red circle for Home signal
+                                            } else if (signalType.includes('home') || signalType.includes('routing')) {
+                                                // Fallback: Draw single red circle for Home/Routing Home signal
                                                 ctx.fillStyle = '#FF0000';
                                                 ctx.beginPath();
                                                 ctx.arc(x, y, 8, 0, 2 * Math.PI);
@@ -4932,9 +4986,22 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                             const allLegends = stoppageLegend.querySelectorAll('.legend-item');
                             const isCurrentlyAllHidden = Array.from(allLegends).every(l => l.classList.contains('striked'));
 
-                            allLegends.forEach(legendItem => {
-                                const clickedIndex = parseInt(legendItem.dataset.datasetIndex);
-                                const dataset = stoppingAnalysisChart.data.datasets[clickedIndex];
+                            allLegends.forEach((legendItem, legendIndex) => {
+                                // Find the corresponding dataset by position (accounting for signal datasets)
+                                let datasetCount = 0;
+                                let dataset = null;
+                                
+                                for (let i = 0; i < stoppingAnalysisChart.data.datasets.length; i++) {
+                                    if (!stoppingAnalysisChart.data.datasets[i].isSignalDataset && !stoppingAnalysisChart.data.datasets[i].isCommonStarterSignal) {
+                                        if (datasetCount === legendIndex) {
+                                            dataset = stoppingAnalysisChart.data.datasets[i];
+                                            break;
+                                        }
+                                        datasetCount++;
+                                    }
+                                }
+
+                                if (!dataset) return;
 
                                 // Set hidden state based on current state
                                 if (isCurrentlyAllHidden) {
@@ -5027,30 +5094,41 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                             const allLegends = homeStoppageLegend.querySelectorAll('.legend-item');
                             const isCurrentlyAllHidden = Array.from(allLegends).every(l => l.classList.contains('striked'));
 
-                            allLegends.forEach(legendItem => {
-                                const clickedIndex = parseInt(legendItem.dataset.datasetIndex);
-                                const dataset = homeSignalsAnalysisChart.data.datasets[clickedIndex];
-
-                                if (dataset) {
-                                    // Set hidden state based on current state
-                                    if (isCurrentlyAllHidden) {
-                                        // If all are hidden, show all
-                                        dataset.hidden = false;
-                                        legendItem.classList.remove('striked');
-                                    } else {
-                                        // If not all are hidden, hide all
-                                        dataset.hidden = true;
-                                        legendItem.classList.add('striked');
-                                    }
-
-                                    // Also toggle signal markers for this specific stop
-                                    const stopIndex = dataset.stopIndex;
-                                    homeSignalsAnalysisChart.data.datasets.forEach((ds, idx) => {
-                                        if (ds.isSignalDataset && ds.stopIndex === stopIndex) {
-                                            ds.hidden = dataset.hidden;
+                            allLegends.forEach((legendItem, legendIndex) => {
+                                // Find the corresponding dataset by position (accounting for signal datasets)
+                                let datasetCount = 0;
+                                let dataset = null;
+                                
+                                for (let i = 0; i < homeSignalsAnalysisChart.data.datasets.length; i++) {
+                                    if (!homeSignalsAnalysisChart.data.datasets[i].isSignalDataset && !homeSignalsAnalysisChart.data.datasets[i].isCommonStarterSignal) {
+                                        if (datasetCount === legendIndex) {
+                                            dataset = homeSignalsAnalysisChart.data.datasets[i];
+                                            break;
                                         }
-                                    });
+                                        datasetCount++;
+                                    }
                                 }
+
+                                if (!dataset) return;
+
+                                // Set hidden state based on current state
+                                if (isCurrentlyAllHidden) {
+                                    // If all are hidden, show all
+                                    dataset.hidden = false;
+                                    legendItem.classList.remove('striked');
+                                } else {
+                                    // If not all are hidden, hide all
+                                    dataset.hidden = true;
+                                    legendItem.classList.add('striked');
+                                }
+
+                                // Also toggle signal markers for this specific stop
+                                const stopIndex = dataset.stopIndex;
+                                homeSignalsAnalysisChart.data.datasets.forEach((ds, idx) => {
+                                    if (ds.isSignalDataset && ds.stopIndex === stopIndex) {
+                                        ds.hidden = dataset.hidden;
+                                    }
+                                });
                             });
 
                             // Update toggle button state
@@ -5164,27 +5242,38 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                 const MIN_STOP_DURATION_SECONDS = 10;
                 let stops = [];
                 let potentialStopStartIdx = -1;
+                let potentialStopEndIdx = -1;
 
                 allLocations.forEach((loc, i) => {
                     if (isNaN(loc.time.getTime())) return;
                     const isStopped = loc.speed < STOP_SPEED_THRESHOLD;
                     if (isStopped && potentialStopStartIdx === -1) {
                         potentialStopStartIdx = i;
+                        potentialStopEndIdx = i;
+                    } else if (isStopped && potentialStopStartIdx !== -1) {
+                        // Keep updating the end index to the last stopped point
+                        potentialStopEndIdx = i;
                     } else if (!isStopped && potentialStopStartIdx !== -1) {
-                        const duration = (allLocations[i - 1].time.getTime() - allLocations[potentialStopStartIdx].time.getTime()) / 1000;
+                        const duration = (allLocations[potentialStopEndIdx].time.getTime() - allLocations[potentialStopStartIdx].time.getTime()) / 1000;
                         if (duration >= MIN_STOP_DURATION_SECONDS) {
-                            stops.push({ endIndex: i - 1, station: allLocations[i - 1].station || 'N/A', time: allLocations[i - 1].time });
+                            // Use potentialStopEndIdx which is the last point BEFORE train restarted
+                            stops.push({ endIndex: potentialStopEndIdx, station: allLocations[potentialStopEndIdx].station || 'N/A', time: allLocations[potentialStopEndIdx].time });
                         }
                         potentialStopStartIdx = -1;
+                        potentialStopEndIdx = -1;
                     }
                 });
 
                 if (potentialStopStartIdx !== -1) {
                     const lastIndex = allLocations.length - 1;
                     if (!isNaN(allLocations[lastIndex].time.getTime())) {
-                        const duration = (allLocations[lastIndex].time.getTime() - allLocations[potentialStopStartIdx].time.getTime()) / 1000;
+                        // Update potentialStopEndIdx to last index if still in stopped state
+                        if (potentialStopEndIdx === -1 || allLocations[lastIndex].speed < STOP_SPEED_THRESHOLD) {
+                            potentialStopEndIdx = lastIndex;
+                        }
+                        const duration = (allLocations[potentialStopEndIdx].time.getTime() - allLocations[potentialStopStartIdx].time.getTime()) / 1000;
                         if (duration >= MIN_STOP_DURATION_SECONDS) {
-                            stops.push({ endIndex: lastIndex, station: allLocations[lastIndex].station || 'N/A', time: allLocations[lastIndex].time });
+                            stops.push({ endIndex: potentialStopEndIdx, station: allLocations[potentialStopEndIdx].station || 'N/A', time: allLocations[potentialStopEndIdx].time });
                         }
                     }
                 }
@@ -5196,78 +5285,15 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                 stops.map((stop, index) => {
                     const stopPoint = turf.point([allLocations[stop.endIndex].lon, allLocations[stop.endIndex].lat]);
                     
-                    // Check if the LAST signal crossed before stopping is a Distant signal
-                    let lastSignalIsDistant = false;
-                    if (signalData && signalData.length > 0) {
-                        const signalLatKey = findKey(signalData[0], ['Latitude']);
-                        const signalLonKey = findKey(signalData[0], ['Longitude']);
-                        const typeKey = findKey(signalData[0], ['Type']);
-                        const stopSigKey = findKey(signalData[0], ['Designation Of Stop Signal']);
-                        const permSigKey = findKey(signalData[0], ['Designation Of Permissive Signal']);
-
-                        if (signalLatKey && signalLonKey) {
-                            // Collect all signals crossed in the braking zone
-                            let signalsCrossed = [];
-                            
-                            for (const signal of signalData) {
-                                // Filter signals by selected route SectionId
-                                if (!isSignalInSelectedRoute(signal)) continue;
-                                
-                                const signalLat = parseFloat(signal[signalLatKey]);
-                                const signalLon = parseFloat(signal[signalLonKey]);
-                                if (isNaN(signalLat) || isNaN(signalLon)) continue;
-
-                                const signalPoint = turf.point([signalLon, signalLat]);
-                                const signalType = signal[typeKey] || signal[stopSigKey] || signal[permSigKey] || 'Unknown';
-                                const signalTypeLower = signalType.toLowerCase();
-
-                                // Find nearest RTIS point to this signal within braking zone
-                                let nearestRtisIndex = -1;
-                                let minDistToSignal = Infinity;
-
-                                for (let i = stop.endIndex - 1; i >= 0; i--) {
-                                    const currentLoc = allLocations[i];
-                                    if (isNaN(currentLoc.time.getTime())) continue;
-
-                                    const currentPoint = turf.point([currentLoc.lon, currentLoc.lat]);
-                                    const distanceToStop = turf.distance(currentPoint, stopPoint, { units: 'meters' });
-                                    const distToSignal = turf.distance(currentPoint, signalPoint, { units: 'meters' });
-
-                                    if (distanceToStop > 3200) break;
-
-                                    if (distToSignal < minDistToSignal) {
-                                        minDistToSignal = distToSignal;
-                                        nearestRtisIndex = i;
-                                    }
-                                }
-
-                                // If signal is within threshold and in braking zone, record it
-                                if (nearestRtisIndex !== -1 && minDistToSignal < MAX_SIGNAL_DISTANCE_METERS) {
-                                    const nearestLoc = allLocations[nearestRtisIndex];
-                                    signalsCrossed.push({
-                                        rtisIndex: nearestRtisIndex,
-                                        signalType: signalTypeLower,
-                                        signalName: signalType,
-                                        distance: minDistToSignal
-                                    });
-                                }
-                            }
-
-                            // Sort by RTIS index to find order of signals crossed
-                            signalsCrossed.sort((a, b) => a.rtisIndex - b.rtisIndex);
-
-                            // Check if the LAST signal crossed is a Distant signal
-                            if (signalsCrossed.length > 0) {
-                                const lastSignal = signalsCrossed[signalsCrossed.length - 1];
-                                if (lastSignal.signalType.includes('distant') && !lastSignal.signalType.includes('home') && !lastSignal.signalType.includes('starter')) {
-                                    lastSignalIsDistant = true;
-                                }
-                            }
-                        }
-                    }
-
-                    // Only include stops where the last signal crossed was Distant
-                    if (!lastSignalIsDistant) return;
+                    // Get the nearest signal to the stop point
+                    const nextSignal = findNextSignalAfterStop(stopPoint);
+                    
+                    // Check if the nearest signal type is "home" or "IBS"
+                    const signalTypeLower = nextSignal ? nextSignal.type.toLowerCase() : '';
+                    const isHomeOrIBS = signalTypeLower.includes('home') || signalTypeLower.includes('ibs');
+                    
+                    // Only include stops where the nearest signal is Home or IBS
+                    if (!isHomeOrIBS) return;
 
                     homeStopCount++;
                     const stopData = [];
@@ -5291,9 +5317,8 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                         }
                     }
 
-                    // Get the distance to next signal (Home signal) after stopping
-                    const nextSignal = findNextSignalAfterStop(stopPoint);
-                    const distanceToNextSignal = nextSignal && nextSignal.type && nextSignal.type.toLowerCase().includes('home') ? nextSignal.distance : 0;
+                    // Get the distance to next signal (Home/IBS signal) after stopping
+                    const distanceToNextSignal = nextSignal ? nextSignal.distance : 0;
 
                     // Second pass: plot data using cumulative distance
                     for (let i = stop.endIndex - 1; i >= 0; i--) {
@@ -5454,37 +5479,60 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                                 }
                             }
 
+                            // Collect all distant signals and check for RHS
+                            let allDistantSignals = [];
+                            let hasRHS = false;
+                            
                             for (const sig of rawSignalData) {
                                 const typeLower = sig.signalType.toLowerCase();
                                 
-                                if (sig.x > 3200) {
-                                    continue;
+                                if (sig.x > 3200) continue;
+                                if (trainDirection && sig.direction !== 'N/A' && sig.direction !== trainDirection) continue;
+
+                                // Check for Routing Home Signal (RHS)
+                                if (typeLower.includes('routing')) {
+                                    hasRHS = true;
                                 }
+
+                                // Collect Distant signals (DS, LSSDS, GSDS, IB Distant, IDS)
+                                if ((typeLower.includes('distant') || typeLower.includes('lss cum distant') || typeLower.includes('gs cum distant') || typeLower.includes('ib distant') || typeLower.includes('inner distant')) && !typeLower.includes('home') && !typeLower.includes('starter')) {
+                                    allDistantSignals.push(sig);
+                                }
+                            }
+                            
+                            // Determine which distant signals to show
+                            let signalsToShow = [];
+                            if (allDistantSignals.length > 0) {
+                                const lastDistant = allDistantSignals[allDistantSignals.length - 1];
+                                const lastDistantTypeLower = lastDistant.signalType.toLowerCase();
+                                const isLastIDS = lastDistantTypeLower.includes('inner distant') || lastDistantTypeLower.includes('ib distant');
                                 
-                                if (trainDirection && sig.direction !== 'N/A' && sig.direction !== trainDirection) {
-                                    continue;
-                                }
-
-                                // For Home signals chart, show Home signals and Distant signals (exclude Starter)
-                                if ((!typeLower.includes('home') && !typeLower.includes('distant')) || typeLower.includes('starter')) {
-                                    continue;
-                                }
-
-                                const stationKey = sig.signalStation;
-                                const firstType = stationFirstSignalType.get(stationKey);
-
-                                if (firstType === 'departure') {
-                                    if ((typeLower.includes('distant') || (typeLower.includes('home') && !typeLower.includes('starter')))) {
-                                        continue;
+                                if (isLastIDS && allDistantSignals.length >= 2) {
+                                    // IDS is just before HS - show both DS and IDS
+                                    for (let di = allDistantSignals.length - 2; di >= 0; di--) {
+                                        const sigTypeLower = allDistantSignals[di].signalType.toLowerCase();
+                                        if (!sigTypeLower.includes('inner distant') && !sigTypeLower.includes('ib distant')) {
+                                            signalsToShow.push(allDistantSignals[di]); // DS first
+                                            break;
+                                        }
                                     }
+                                    signalsToShow.push(lastDistant); // Then IDS
+                                } else {
+                                    // Default: show only the last distant signal
+                                    signalsToShow.push(lastDistant);
                                 }
+                            }
 
-                                let signalTypeShort = '';
-                                if (typeLower.includes('home')) {
-                                    signalTypeShort = 'HS';
-                                } else if (typeLower.includes('distant')) {
-                                    signalTypeShort = 'DS';
-                                }
+                            // Add selected distant signals to markers
+                            const hasIDSBeforeHS = signalsToShow.some(s => {
+                                const t = s.signalType.toLowerCase();
+                                return t.includes('inner distant') || t.includes('ib distant');
+                            });
+                            for (const sig of signalsToShow) {
+                                const typeLower = sig.signalType.toLowerCase();
+                                const isIDS = typeLower.includes('inner distant') || typeLower.includes('ib distant');
+                                const signalTypeShort = isIDS ? 'IDS' : 'DS';
+                                
                                 let signalLabel = '';
                                 if (sig.signalLabel) {
                                     signalLabel = `${sig.signalLabel}(${sig.y.toFixed(1).replace(/\.0$/, '')})`;
@@ -5497,8 +5545,15 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                                     y: sig.y,
                                     label: signalLabel,
                                     signalType: sig.signalType,
-                                    signalStation: sig.signalStation
+                                    signalStation: sig.signalStation,
+                                    isIDS: isIDS,
+                                    hasIDSBeforeHS: hasIDSBeforeHS
                                 });
+                            }
+
+                            // Keep only the first two crossed signals for this dataset
+                            if (signalMarkersData.length > 2) {
+                                signalMarkersData.splice(2);
                             }
 
                             if (signalMarkersData.length > 0) {
@@ -5564,14 +5619,17 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                 const homeImg = new Image();
                 const distantCautionImg = new Image();
                 const homeDangerImg = new Image();
+                const distantAttentionImg = new Image();
+                distantAttentionImg.src = 'data:image/svg+xml;base64,' + btoa(`<?xml version="1.0"?><svg width="85" height="407" xmlns="http://www.w3.org/2000/svg"><g class="layer"><title>Layer 1</title><g data-cell-id="1" id="svg_3"><g data-cell-id="8Pz4FwjKvFX1z93biRRz-6" id="svg_4"><g id="svg_5"><path d="m42,405l0,-160" fill="none" id="svg_6" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-width="6"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--5" id="svg_7" transform="matrix(1 0 0 1 0 0)"><g id="svg_8"><ellipse cx="42.5" cy="45.5" fill="#ffff00" id="svg_9" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--6" id="svg_10" transform="matrix(1 0 0 1 0 0)"><g id="svg_11"><ellipse cx="42.5" cy="205.5" fill="#ffff00" id="svg_12" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="gzgGxNtp2YSv-8hrBadr-1" id="svg_13" transform="matrix(1 0 0 1 0 0)"><g id="svg_14" transform="translate(0.5 0.5)"><ellipse cx="42" cy="125" fill="#000000" id="svg_15" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g></g></g></svg>`);
                 distantImg.src = 'data:image/svg+xml;base64,' + btoa(`<?xml version="1.0"?><svg width="85" height="407" xmlns="http://www.w3.org/2000/svg"><g class="layer"><title>Layer 1</title><g data-cell-id="1" id="svg_3"><g data-cell-id="8Pz4FwjKvFX1z93biRRz-6" id="svg_4"><g id="svg_5"><path d="m42,405l0,-160" fill="none" id="svg_6" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-width="6"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--5" id="svg_7" transform="matrix(1 0 0 1 0 0)"><g id="svg_8"><ellipse cx="42.5" cy="45.5" fill="#ffff00" id="svg_9" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--6" id="svg_10" transform="matrix(1 0 0 1 0 0)"><g id="svg_11"><ellipse cx="42.5" cy="205.5" fill="#ffff00" id="svg_12" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="gzgGxNtp2YSv-8hrBadr-1" id="svg_13" transform="matrix(1 0 0 1 0 0)"><g id="svg_14" transform="translate(0.5 0.5)"><ellipse cx="42" cy="125" fill="#000000" id="svg_15" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g></g></g></svg>`);
                 homeImg.src = 'data:image/svg+xml;base64,' + btoa(`<?xml version="1.0"?><svg width="297" height="437" xmlns="http://www.w3.org/2000/svg"><g class="layer"><title>Layer 1</title><g id="svg_1" transform="matrix(1 0 0 1 0 0)"><g data-cell-id="1" id="svg_3"><g data-cell-id="8Pz4FwjKvFX1z93biRRz-4" id="svg_4"><g id="svg_5" transform="translate(0.5,0.5)"><ellipse cx="143" cy="153" fill="#000000" id="svg_6" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="8Pz4FwjKvFX1z93biRRz-5" id="svg_7"><g id="svg_8" transform="translate(0.5,0.5)"><ellipse cx="143" cy="233" fill="#ffff00" id="svg_9" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="8Pz4FwjKvFX1z93biRRz-6" id="svg_10"><g id="svg_11"><path d="m143,433l0,-160" fill="none" id="svg_12" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-width="6"/></g></g><g data-cell-id="8Pz4FwjKvFX1z93biRRz-8" id="svg_13"><g id="svg_14"><path d="m293,11.28l-130,101.72" fill="none" id="svg_15" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-width="6"/></g></g><g data-cell-id="8Pz4FwjKvFX1z93biRRz-9" id="svg_16"><g id="svg_17"><path d="m3,3l120,110l-10,-8.28" fill="none" id="svg_18" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-width="6"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--1" id="svg_19"><g id="svg_20" transform="translate(0.5,0.5)"><ellipse cx="143" cy="153" fill="#ff0000" id="svg_21" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--2" id="svg_22"><g id="svg_23" transform="translate(0.5,0.5)"><ellipse cx="143" cy="73" fill="#000000" id="svg_24" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--3" id="svg_25"><g id="svg_26" transform="translate(0.5,0.5)"><ellipse cx="143" cy="233" fill="#000000" id="svg_27" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g></g></g></g></svg>`);
-                distantCautionImg.src = 'data:image/svg+xml;base64,' + btoa(`<?xml version="1.0"?><svg width="85" height="407" xmlns="http://www.w3.org/2000/svg"><g class="layer"><title>Layer 1</title><g data-cell-id="1" id="svg_3"><g data-cell-id="8Pz4FwjKvFX1z93biRRz-6" id="svg_4"><g id="svg_5"><path d="m42,405l0,-160" fill="none" id="svg_6" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-width="6"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--5" id="svg_7" transform="matrix(1 0 0 1 0 0)"><g id="svg_8"><ellipse cx="42.5" cy="45.5" fill="#000000" id="svg_9" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--6" id="svg_10" transform="matrix(1 0 0 1 0 0)"><g id="svg_11"><ellipse cx="42.5" cy="205.5" fill="#000000" id="svg_12" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="gzgGxNtp2YSv-8hrBadr-1" id="svg_13" transform="matrix(1 0 0 1 0 0)"><g id="svg_14" transform="translate(0.5 0.5)"><ellipse cx="42" cy="125" fill="#ffff00" id="svg_15" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g></g></g></svg>`);
-                homeDangerImg.src = 'data:image/svg+xml;base64,' + btoa(`<?xml version="1.0"?><svg width="297" height="437" xmlns="http://www.w3.org/2000/svg"><g class="layer"><title>Layer 1</title><g id="svg_1" transform="matrix(1 0 0 1 0 0)"><g data-cell-id="1" id="svg_3"><g data-cell-id="8Pz4FwjKvFX1z93biRRz-4" id="svg_4"><g id="svg_5" transform="translate(0.5,0.5)"><ellipse cx="143" cy="153" fill="#000000" id="svg_6" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="8Pz4FwjKvFX1z93biRRz-5" id="svg_7"><g id="svg_8" transform="translate(0.5,0.5)"><ellipse cx="143" cy="233" fill="#ffff00" id="svg_9" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="8Pz4FwjKvFX1z93biRRz-6" id="svg_10"><g id="svg_11"><path d="m143,433l0,-160" fill="none" id="svg_12" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-width="6"/></g></g><g data-cell-id="8Pz4FwjKvFX1z93biRRz-8" id="svg_13"><g id="svg_14"><path d="m293,11.28l-130,101.72" fill="none" id="svg_15" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-width="6"/></g></g><g data-cell-id="8Pz4FwjKvFX1z93biRRz-9" id="svg_16"><g id="svg_17"><path d="m3,3l120,110l-10,-8.28" fill="none" id="svg_18" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-width="6"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--1" id="svg_19"><g id="svg_20" transform="translate(0.5,0.5)"><ellipse cx="143" cy="153" fill="#ff0000" id="svg_21" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--2" id="svg_22"><g id="svg_23" transform="translate(0.5,0.5)"><ellipse cx="143" cy="73" fill="#000000" id="svg_24" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--3" id="svg_25"><g id="svg_26" transform="translate(0.5,0.5)"><ellipse cx="143" cy="233" fill="#000000" id="svg_27" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g></g></g></g></svg>`);
+                distantCautionImg.src = 'data:image/svg+xml;base64,' + btoa(`<?xml version="1.0"?><svg width="85" height="407" xmlns="http://www.w3.org/2000/svg"><g class="layer"><title>Layer 1</title><g data-cell-id="1" id="svg_3"><g data-cell-id="8Pz4FwjKvFX1z93biRRz-6" id="svg_4"><g id="svg_5"><path d="m42,405l0,-160" fill="none" id="svg_6" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-width="6"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--5" id="svg_7" transform="matrix(1 0 0 1 0 0)"><g id="svg_8"><ellipse cx="42.5" cy="45.5" fill="#ffff00" id="svg_9" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--6" id="svg_10" transform="matrix(1 0 0 1 0 0)"><g id="svg_11"><ellipse cx="42.5" cy="205.5" fill="#000000" id="svg_12" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="gzgGxNtp2YSv-8hrBadr-1" id="svg_13" transform="matrix(1 0 0 1 0 0)"><g id="svg_14" transform="translate(0.5 0.5)"><ellipse cx="42" cy="125" fill="#000000" id="svg_15" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g></g></g></svg>`);
+                homeDangerImg.src = 'data:image/svg+xml;base64,' + btoa(`<?xml version="1.0"?><svg width="297" height="437" xmlns="http://www.w3.org/2000/svg"><g class="layer"><title>Layer 1</title><g id="svg_1" transform="matrix(1 0 0 1 0 0)"><g data-cell-id="1" id="svg_3"><g data-cell-id="8Pz4FwjKvFX1z93biRRz-4" id="svg_4"><g id="svg_5" transform="translate(0.5,0.5)"><ellipse cx="143" cy="153" fill="#000000" id="svg_6" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="8Pz4FwjKvFX1z93biRRz-5" id="svg_7"><g id="svg_8" transform="translate(0.5,0.5)"><ellipse cx="143" cy="233" fill="#ffff00" id="svg_9" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="8Pz4FwjKvFX1z93biRRz-6" id="svg_10"><g id="svg_11"><path d="m143,433l0,-160" fill="none" id="svg_12" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-width="6"/></g></g><g data-cell-id="8Pz4FwjKvFX1z93biRRz-8" id="svg_13"><g id="svg_14"><path d="m293,11.28l-130,101.72" fill="none" id="svg_15" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-width="6"/></g></g><g data-cell-id="8Pz4FwjKvFX1z93biRRz-9" id="svg_16"><g id="svg_17"><path d="m3,3l120,110l-10,-8.28" fill="none" id="svg_18" stroke="rgb(0, 0, 0)" stroke-miterlimit="10" stroke-width="6"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--1" id="svg_19"><g id="svg_20" transform="translate(0.5,0.5)"><ellipse cx="143" cy="153" fill="#000000" id="svg_21" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--2" id="svg_22"><g id="svg_23" transform="translate(0.5,0.5)"><ellipse cx="143" cy="73" fill="#ff0000" id="svg_24" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g><g data-cell-id="ryJtjQtIMMNOp2CFgdi--3" id="svg_25"><g id="svg_26" transform="translate(0.5,0.5)"><ellipse cx="143" cy="233" fill="#000000" id="svg_27" rx="40" ry="40" stroke="rgb(0, 0, 0)" stroke-width="5"/></g></g></g></g></g></svg>`);
                 distantImg.onload = () => { signalImages['distant'] = distantImg; };
                 homeImg.onload = () => { signalImages['home'] = homeImg; };
                 distantCautionImg.onload = () => { signalImages['distantCaution'] = distantCautionImg; };
                 homeDangerImg.onload = () => { signalImages['homeDanger'] = homeDangerImg; };
+                distantAttentionImg.onload = () => { signalImages['distantAttention'] = distantAttentionImg; };
 
                 const signalLabelPlugin = {
                     afterDatasetsDraw(chart) {
@@ -5584,8 +5642,8 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                                     if (datapoint.isCommonHomeSignal) {
                                         const point = chart.getDatasetMeta(datasetIndex).data[index];
                                         if (point) {
-                                            if (signalImages['home']) {
-                                                ctx.drawImage(signalImages['home'], point.x - 10, point.y - 38, 30, 36);
+                                            if (signalImages['homeDanger']) {
+                                                ctx.drawImage(signalImages['homeDanger'], point.x - 16, point.y - 36, 30, 36);
                                             }
                                         }
                                     }
@@ -5604,8 +5662,8 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                                             const signalType = (datapoint.signalType || '').toLowerCase();
                                             
                                             // Handle Home Signal
-                                            if (signalType.includes('home') && signalImages['homeDanger']) {
-                                                ctx.drawImage(signalImages['homeDanger'], x - 6, y - 34, 30, 36);
+                                            if (signalType.includes('home') && signalImages['home']) {
+                                                ctx.drawImage(signalImages['home'], x - 6, y - 34, 30, 36);
                                             } else if (signalType.includes('home')) {
                                                 ctx.fillStyle = '#FF0000';
                                                 ctx.beginPath();
@@ -5617,8 +5675,15 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                                                 ctx.fill();
                                             }
                                             
-                                            // Handle Distant Signal
-                                            if (signalType.includes('distant') && signalImages['distantCaution']) {
+                                            // Handle Distant Signal - differentiate DS from IDS
+                                            if ((signalType.includes('inner distant') || signalType.includes('ib distant')) && signalImages['distantCaution']) {
+                                                // IDS (Inner Distant) - always single yellow
+                                                ctx.drawImage(signalImages['distantCaution'], x - 6, y - 32, 10, 30);
+                                            } else if ((signalType.includes('distant') || signalType.includes('lss cum distant') || signalType.includes('gs cum distant')) && datapoint.hasIDSBeforeHS && signalImages['distantAttention']) {
+                                                // DS when IDS also exists - use distantAttention image (double yellow)
+                                                ctx.drawImage(signalImages['distantAttention'], x - 6, y - 32, 10, 30);
+                                            } else if ((signalType.includes('distant') || signalType.includes('lss cum distant') || signalType.includes('gs cum distant')) && signalImages['distantCaution']) {
+                                                // DS without IDS - single yellow
                                                 ctx.drawImage(signalImages['distantCaution'], x - 6, y - 32, 10, 30);
                                             }
                                             
@@ -5644,79 +5709,17 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
                     
                     // Add legend items for each home signal stop (main datasets)
                     stops.forEach((stop, idx) => {
-                        // Check if the LAST signal crossed before stopping is a Distant signal
-                        let lastSignalIsDistant = false;
-                        if (signalData && signalData.length > 0) {
-                            const signalLatKey = findKey(signalData[0], ['Latitude']);
-                            const signalLonKey = findKey(signalData[0], ['Longitude']);
-                            const typeKey = findKey(signalData[0], ['Type']);
-                            const stopSigKey = findKey(signalData[0], ['Designation Of Stop Signal']);
-                            const permSigKey = findKey(signalData[0], ['Designation Of Permissive Signal']);
-
-                            if (signalLatKey && signalLonKey) {
-                                const stopPoint = turf.point([allLocations[stop.endIndex].lon, allLocations[stop.endIndex].lat]);
-                                
-                                // Collect all signals crossed in the braking zone
-                                let signalsCrossed = [];
-                                
-                                for (const signal of signalData) {
-                                    // Filter signals by selected route SectionId
-                                    if (!isSignalInSelectedRoute(signal)) continue;
-                                    
-                                    const signalLat = parseFloat(signal[signalLatKey]);
-                                    const signalLon = parseFloat(signal[signalLonKey]);
-                                    if (isNaN(signalLat) || isNaN(signalLon)) continue;
-
-                                    const signalPoint = turf.point([signalLon, signalLat]);
-                                    const signalType = signal[typeKey] || signal[stopSigKey] || signal[permSigKey] || 'Unknown';
-                                    const signalTypeLower = signalType.toLowerCase();
-
-                                    // Find nearest RTIS point to this signal within braking zone
-                                    let nearestRtisIndex = -1;
-                                    let minDistToSignal = Infinity;
-
-                                    for (let i = stop.endIndex - 1; i >= 0; i--) {
-                                        const currentLoc = allLocations[i];
-                                        if (isNaN(currentLoc.time.getTime())) continue;
-
-                                        const currentPoint = turf.point([currentLoc.lon, currentLoc.lat]);
-                                        const distanceToStop = turf.distance(currentPoint, stopPoint, { units: 'meters' });
-                                        const distToSignal = turf.distance(currentPoint, signalPoint, { units: 'meters' });
-
-                                        if (distanceToStop > 3200) break;
-
-                                        if (distToSignal < minDistToSignal) {
-                                            minDistToSignal = distToSignal;
-                                            nearestRtisIndex = i;
-                                        }
-                                    }
-
-                                    // If signal is within threshold and in braking zone, record it
-                                    if (nearestRtisIndex !== -1 && minDistToSignal < MAX_SIGNAL_DISTANCE_METERS) {
-                                        signalsCrossed.push({
-                                            rtisIndex: nearestRtisIndex,
-                                            signalType: signalTypeLower,
-                                            signalName: signalType,
-                                            distance: minDistToSignal
-                                        });
-                                    }
-                                }
-
-                                // Sort by RTIS index to find order of signals crossed
-                                signalsCrossed.sort((a, b) => a.rtisIndex - b.rtisIndex);
-
-                                // Check if the LAST signal crossed is a Distant signal
-                                if (signalsCrossed.length > 0) {
-                                    const lastSignal = signalsCrossed[signalsCrossed.length - 1];
-                                    if (lastSignal.signalType.includes('distant') && !lastSignal.signalType.includes('home') && !lastSignal.signalType.includes('starter')) {
-                                        lastSignalIsDistant = true;
-                                    }
-                                }
-                            }
-                        }
-
-                        // Only include stops where the last signal crossed was Distant
-                        if (!lastSignalIsDistant) return;
+                        const stopPoint = turf.point([allLocations[stop.endIndex].lon, allLocations[stop.endIndex].lat]);
+                        
+                        // Get the nearest signal to the stop point
+                        const nextSignal = findNextSignalAfterStop(stopPoint);
+                        
+                        // Check if the nearest signal type is "home" or "IBS"
+                        const signalTypeLower = nextSignal ? nextSignal.type.toLowerCase() : '';
+                        const isHomeOrIBS = signalTypeLower.includes('home') || signalTypeLower.includes('ibs');
+                        
+                        // Only include stops where the nearest signal is Home or IBS
+                        if (!isHomeOrIBS) return;
 
                         // Find corresponding dataset for this stop
                         let datasetIdx = -1;
@@ -5732,7 +5735,6 @@ HPT-SUR,HPT-GIN-TLKL-GDG-BGK-HG-SUR,"29,28,27,12,13,14"`;
 
                         const dataset = homeSignalsAnalysisChart.data.datasets[datasetIdx];
                         const color = dataset.borderColor;
-                        const nextSignal = findNextSignalAfterStop(turf.point([allLocations[stop.endIndex].lon, allLocations[stop.endIndex].lat]));
                         let signalText = '';
                         
                         if (nextSignal) {
