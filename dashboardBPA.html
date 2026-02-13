@@ -1,0 +1,2450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Table with Filters</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            padding: 30px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 2em;
+        }
+        h2{
+            color: #555;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 1.5em;
+        }
+
+        .filters {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #555;
+            font-size: 0.9em;
+        }
+
+        select {
+            padding: 10px 15px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        select:hover {
+            border-color: #667eea;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .reset-btn {
+            background: #667eea;
+            color: white;
+        }
+
+        .reset-btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85em;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        tbody tr {
+            transition: background 0.2s ease;
+        }
+
+        tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+            font-size: 1.2em;
+        }
+
+        .error {
+            text-align: center;
+            padding: 40px;
+            color: #e74c3c;
+            font-size: 1.1em;
+            background: #ffe6e6;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .record-count {
+            margin-top: 15px;
+            padding: 10px;
+            background: #e8f4f8;
+            border-left: 4px solid #667eea;
+            color: #555;
+            font-weight: 500;
+            border-radius: 4px;
+        }
+
+        .report-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .report-link:hover {
+            color: #5568d3;
+            text-decoration: underline;
+        }
+
+        .report-link::after {
+            content: ' 🔗';
+        }
+
+        .sno-cell {
+            font-weight: 600;
+            color: #667eea;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            h1 {
+                font-size: 1.5em;
+            }
+
+            .filters {
+                grid-template-columns: 1fr;
+            }
+
+            table {
+                font-size: 0.9em;
+            }
+
+            th, td {
+                padding: 10px;
+            }
+        }
+
+        /* Tab Navigation */
+        .tab-bar {
+            display: flex;
+            gap: 0;
+            margin-bottom: 0;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .tab-btn {
+            padding: 14px 32px;
+            border: 2px solid transparent;
+            border-bottom: none;
+            border-radius: 8px 8px 0 0;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            background: #e8ecf8;
+            color: #555;
+            transition: all 0.3s ease;
+            position: relative;
+            bottom: -3px;
+        }
+
+        .tab-btn:hover {
+            background: #d0d7f0;
+            color: #333;
+        }
+
+        .tab-btn.active {
+            background: white;
+            color: #667eea;
+            border-color: #667eea;
+            border-bottom: 3px solid white;
+        }
+
+        .tab-content {
+            display: none;
+            padding-top: 20px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Analytics Styles */
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 12px;
+            margin-bottom: 30px;
+        }
+
+        .kpi-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 14px 10px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            transition: transform 0.2s;
+            min-width: 0;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .kpi-card.green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); box-shadow: 0 4px 15px rgba(17, 153, 142, 0.3); }
+        .kpi-card.orange { background: linear-gradient(135deg, #f2994a 0%, #f2c94c 100%); box-shadow: 0 4px 15px rgba(242, 153, 74, 0.3); }
+        .kpi-card.red { background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3); }
+        .kpi-card.blue { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+
+        .kpi-value {
+            font-size: 1.8em;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+
+        .kpi-label {
+            font-size: 0.75em;
+            opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .charts-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 24px;
+            margin-bottom: 30px;
+        }
+
+        .chart-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            border: 1px solid #eee;
+        }
+
+        .chart-card h3 {
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 1.1em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 8px;
+        }
+
+        .analytics-section {
+            margin-bottom: 30px;
+        }
+
+        /* Sticky columns for monthly breakdown */
+        #monthlyBreakdownTable th.sticky-left,
+        #monthlyBreakdownTable td.sticky-left,
+        #monthlyCLIBreakdownTable th.sticky-left,
+        #monthlyCLIBreakdownTable td.sticky-left {
+            position: sticky;
+            left: 0;
+            z-index: 2;
+            background: #f0f4ff;
+        }
+        #monthlyBreakdownTable th.sticky-right,
+        #monthlyBreakdownTable td.sticky-right,
+        #monthlyCLIBreakdownTable th.sticky-right,
+        #monthlyCLIBreakdownTable td.sticky-right {
+            position: sticky;
+            right: 0;
+            z-index: 2;
+            background: #f0f4ff;
+        }
+        #monthlyBreakdownTable thead th.sticky-left,
+        #monthlyBreakdownTable thead th.sticky-right,
+        #monthlyCLIBreakdownTable thead th.sticky-left,
+        #monthlyCLIBreakdownTable thead th.sticky-right {
+            z-index: 3;
+            background: #667eea;
+        }
+
+        .analytics-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+            border-left: 4px solid #667eea;
+            padding-left: 12px;
+        }
+
+        .pivot-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            font-size: 0.9em;
+        }
+
+        .pivot-table thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .pivot-table th {
+            padding: 12px 14px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .pivot-table td {
+            padding: 10px 14px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .pivot-table tbody tr:hover {
+            background: #f0f4ff;
+        }
+
+        .status-done { color: #27ae60; font-weight: 700; }
+        .status-pending { color: #e74c3c; font-weight: 700; }
+
+        .progress-bar-wrapper {
+            background: #eee;
+            border-radius: 10px;
+            height: 22px;
+            overflow: hidden;
+            position: relative;
+            min-width: 100px;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            border-radius: 10px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.75em;
+            font-weight: 700;
+        }
+
+        .hyperlink-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+            font-weight: 600;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .hyperlink-btn:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+        }
+
+        .crew-badge-done {
+            background: #d4edda;
+            color: #155724;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+
+        .crew-badge-pending {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+
+        .analytics-filter-row {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 12px 16px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            flex-wrap: wrap;
+        }
+
+        .analytics-filter-row label {
+            margin-bottom: 0;
+        }
+
+        .analytics-filter-row select {
+            padding: 8px 12px;
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+        .pagination button {
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-weight: 600;
+            color: #555;
+            transition: all 0.2s;
+            min-width: 36px;
+        }
+        .pagination button:hover:not(:disabled) {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        .pagination button.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        .pagination button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .pagination .page-info {
+            font-size: 0.85em;
+            color: #666;
+            margin: 0 8px;
+        }
+        .page-size-select {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+            justify-content: center;
+        }
+        .page-size-select label {
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 0;
+        }
+        .page-size-select select {
+            padding: 4px 8px;
+            font-size: 0.85em;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        /* Back-to-top floating button */
+        #backToTop {
+            position: fixed;
+            bottom: 32px;
+            right: 32px;
+            z-index: 9999;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            font-size: 22px;
+            box-shadow: 0 4px 16px rgba(102,126,234,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s, transform 0.3s;
+            transform: translateY(12px);
+        }
+        #backToTop.visible {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        #backToTop:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 24px rgba(102,126,234,0.55);
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Braking Pattern Analysis Dashboard</h1>
+        <h2>UBL Div - South Western Railway</h2>
+
+        <!-- Tab Navigation -->
+        <div class="tab-bar">
+            <button class="tab-btn active" onclick="switchTab('mainData')" id="tabMainData">📊 Main Data</button>
+            <button class="tab-btn" onclick="switchTab('analytics')" id="tabAnalytics">📈 Analytics & Metrics</button>
+        </div>
+
+        <!-- Main Data Tab -->
+        <div id="mainDataTab" class="tab-content active">
+        <div class="filters">
+            <div class="filter-group">
+                <label for="locationFilter">Lobby</label>
+                <select id="locationFilter">
+                    <option value="">Select Lobby</option>
+                    <option value="BAY">BAY</option>
+                    <option value="BGM">BGM</option>
+                    <option value="BJP">BJP</option>
+                    <option value="CLR">CLR</option>
+                    <option value="HPT">HPT</option>
+                    <option value="UBL">UBL</option>
+                    <option value="VSG">VSG</option>
+                    <option value="TNGL">TNGL</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="cliFilter">CLI</label>
+                <select id="cliFilter">
+                    <option value="">All</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="crewFilter">Crew ID - Name</label>
+                <select id="crewFilter" disabled>
+                    <option value="">All</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="monthFilter">Month-Year</label>
+                <select id="monthFilter">
+                    <option value="">All</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button class="reset-btn" onclick="resetFilters()">🔄 Reset Filters</button>
+        </div>
+
+        <div class="record-count" id="recordCount"></div>
+
+        <div class="table-wrapper">
+            <div id="loading" class="loading">Loading data...</div>
+            <div id="error" class="error" style="display: none;"></div>
+            <table id="dataTable" style="display: none;">
+                <thead id="tableHead"></thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+        <div id="mainPagination" class="pagination"></div>
+        <div class="page-size-select">
+            <label for="mainPageSize">Rows per page:</label>
+            <select id="mainPageSize">
+                <option value="25">25</option>
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+                <option value="200">200</option>
+                <option value="0">All</option>
+            </select>
+        </div>
+        </div><!-- end mainDataTab -->
+
+        <!-- Analytics & Metrics Tab -->
+        <div id="analyticsTab" class="tab-content">
+            <div id="analyticsLoading" class="loading">Loading analytics data...</div>
+            <div id="analyticsContent" style="display:none;">
+
+                <!-- KPI Month Filter -->
+                <div class="analytics-filter-row" style="margin-bottom:10px;">
+                    <label for="kpiMonthFilter">Filter KPIs by Month:</label>
+                    <select id="kpiMonthFilter"><option value="">All Months (Cumulative)</option></select>
+                </div>
+
+                <!-- KPI Summary Cards -->
+                <div class="kpi-row">
+                    <div class="kpi-card blue">
+                        <div class="kpi-value" id="kpiTotalBPA">0</div>
+                        <div class="kpi-label">Total BPAs Done</div>
+                    </div>
+                    <div class="kpi-card green">
+                        <div class="kpi-value" id="kpiCrewsCovered">0</div>
+                        <div class="kpi-label">Unique Crews Covered</div>
+                    </div>
+                    <div class="kpi-card orange">
+                        <div class="kpi-value" id="kpiActiveLIs">0</div>
+                        <div class="kpi-label">Active LIs</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-value" id="kpiTotalTarget">0</div>
+                        <div class="kpi-label">Total Monthly Target</div>
+                    </div>
+                    <div class="kpi-card green">
+                        <div class="kpi-value" id="kpiNominatedBPAs">0</div>
+                        <div class="kpi-label">Nominated LP BPAs</div>
+                    </div>
+                    <div class="kpi-card green">
+                        <div class="kpi-value" id="kpiCompletionRate">0%</div>
+                        <div class="kpi-label">Overall Achievement %</div>
+                    </div>
+                    <div class="kpi-card red">
+                        <div class="kpi-value" id="kpiDeficiencies">0</div>
+                        <div class="kpi-label">BPAs with Deficiencies</div>
+                    </div>
+                </div>
+
+                <!-- Charts Month Filter -->
+                <div class="analytics-filter-row" style="margin-bottom:10px;">
+                    <label for="chartMonthFilter">Filter Charts by Month:</label>
+                    <select id="chartMonthFilter"><option value="">All Months</option></select>
+                </div>
+
+                <!-- NLI-wise BPA Completion (full width) -->
+                <div class="charts-row" style="grid-template-columns: 1fr;">
+                    <div class="chart-card">
+                        <h3>NLI-wise BPA Completion</h3>
+                        <canvas id="chartNLICompletion"></canvas>
+                    </div>
+                </div>
+
+                <!-- Charts Row 1 -->
+                <div class="charts-row">
+                    <div class="chart-card">
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px;">
+                            <h3 style="margin:0;">Lobby-wise BPA Distribution</h3>
+                            <select id="lobbyChartMonthFilter" style="padding:4px 8px;border-radius:6px;border:1px solid #ddd;font-size:0.85rem;"><option value="">All Months</option></select>
+                        </div>
+                        <canvas id="chartLocationDist"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Monthly BPA Trend</h3>
+                        <canvas id="chartMonthlyTrend"></canvas>
+                    </div>
+                </div>
+
+                <!-- NLI Workload (full width) -->
+                <div class="charts-row" style="grid-template-columns: 1fr;">
+                    <div class="chart-card">
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px;">
+                            <h3 style="margin:0;">Total BPAs Conducted (NLI-wise)</h3>
+                            <select id="workloadChartMonthFilter" style="padding:4px 8px;border-radius:6px;border:1px solid #ddd;font-size:0.85rem;"><option value="">All Months</option></select>
+                        </div>
+                        <canvas id="chartNLIWorkload"></canvas>
+                    </div>
+                </div>
+
+                <!-- LI Monthly Performance Table -->
+                <div class="analytics-section">
+                    <h3>LI Monthly Performance — Target vs Achievement</h3>                    
+                    <div class="analytics-filter-row">
+                        <label for="analyticsLocationFilter">Filter by Lobby:</label>
+                        <select id="analyticsLocationFilter">
+                            <option value="">All Lobbies</option>
+                            <option value="BAY">BAY</option>
+                            <option value="BGM">BGM</option>
+                            <option value="BJP">BJP</option>
+                            <option value="CLR">CLR</option>
+                            <option value="HPT">HPT</option>
+                            <option value="UBL">UBL</option>
+                            <option value="VSG">VSG</option>
+                            <option value="TNGL">TNGL</option>
+                        </select>
+                        <label for="liMonthFilter">📅 Month:</label>
+                        <select id="liMonthFilter" style="min-width:150px;">
+                            <option value="">All Months</option>
+                        </select>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="pivot-table" id="nliPivotTable">
+                            <thead>
+                                <tr>
+                                    <th>S.No</th>
+                                    <th>LI Name</th>
+                                    <th>Lobby</th>
+                                    <th>Nominated LPs</th>
+                                    <th>Monthly Target (2×NLPs)</th>
+                                    <th>NLP BPAs Done</th>
+                                    <th>Other BPAs Done</th>
+                                    <th>Total BPAs</th>
+                                    <th>Deficiencies</th>
+                                    <th>Achievement %</th>
+                                    <th>View Data</th>
+                                </tr>
+                            </thead>
+                            <tbody id="nliPivotBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- CLI Performance Pivot Table (hidden - duplicates LI Performance above) -->
+                <div class="analytics-section" style="display:none;">
+                    <h3>CLI Performance Summary (NLP + Other than NLP)</h3>
+                    <div class="analytics-filter-row">
+                        <label for="cliPivotLocationFilter">Filter by Lobby:</label>
+                        <select id="cliPivotLocationFilter">
+                            <option value="">All Lobbies</option>
+                            <option value="BAY">BAY</option>
+                            <option value="BGM">BGM</option>
+                            <option value="BJP">BJP</option>
+                            <option value="CLR">CLR</option>
+                            <option value="HPT">HPT</option>
+                            <option value="UBL">UBL</option>
+                            <option value="VSG">VSG</option>
+                            <option value="TNGL">TNGL</option>
+                        </select>
+                        <label for="cliMonthFilter">📅 Month:</label>
+                        <select id="cliMonthFilter" style="min-width:150px;">
+                            <option value="">All Months</option>
+                        </select>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="pivot-table" id="cliPivotTable">
+                            <thead>
+                                <tr>
+                                    <th>S.No</th>
+                                    <th>CLI Name</th>
+                                    <th>Lobby</th>
+                                    <th>Total BPAs Analyzed</th>
+                                    <th>Unique Crews Analyzed</th>
+                                    <th>Last BPA Date</th>
+                                    <th>Deficiencies</th>
+                                    <th>View Data</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cliPivotBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Monthly Breakdown Table -->
+                <div class="analytics-section">
+                    <h3>Monthly BPA Breakdown by CLI (All LPs)</h3>
+                    <div class="table-wrapper">
+                        <table class="pivot-table" id="monthlyBreakdownTable">
+                            <thead id="monthlyBreakdownHead"></thead>
+                            <tbody id="monthlyBreakdownBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Monthly Breakdown by CLI Table -->
+                <div class="analytics-section">
+                    <h3>Monthly Nominated LPs BPA Breakdown by CLI</h3>
+                    <div class="table-wrapper">
+                        <table class="pivot-table" id="monthlyCLIBreakdownTable">
+                            <thead id="monthlyCLIBreakdownHead"></thead>
+                            <tbody id="monthlyCLIBreakdownBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Deficiencies Detail Table -->
+                <div class="analytics-section">
+                    <h3>Deficiencies Noticed in BPAs</h3>
+                    <div class="analytics-filter-row">
+                        <label for="defMonthFilter">📅 Month:</label>
+                        <select id="defMonthFilter" style="min-width:150px;">
+                            <option value="">All Months</option>
+                        </select>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="pivot-table" id="deficiencyTable">
+                            <thead>
+                                <tr>
+                                    <th>S.No</th>
+                                    <th>Date</th>
+                                    <th>Crew ID</th>
+                                    <th>Crew Name</th>
+                                    <th>NLI</th>
+                                    <th>Analyzed By</th>
+                                    <th>Section</th>
+                                    <th>Train No</th>
+                                    <th>Deficiency Observed</th>
+                                    <th>Report</th>
+                                </tr>
+                            </thead>
+                            <tbody id="deficiencyBody"></tbody>
+                        </table>
+                    </div>
+                    <div id="deficiencyPagination" class="pagination"></div>
+                    <div class="page-size-select">
+                        <label for="defPageSize">Rows per page:</label>
+                        <select id="defPageSize">
+                            <option value="25" selected>25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                            <option value="0">All</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Crew Coverage Detail Table -->
+                <div class="analytics-section">
+                    <h3>Crew-wise BPA Coverage Detail</h3>
+                    <div class="analytics-filter-row">
+                        <label for="crewNLIFilter">Filter by NLI:</label>
+                        <select id="crewNLIFilter">
+                            <option value="">All NLIs</option>
+                        </select>
+                        <label for="crewDesigFilter">Designation:</label>
+                        <select id="crewDesigFilter">
+                            <option value="">All</option>
+                        </select>
+                        <label for="crewStatusFilter">Status:</label>
+                        <select id="crewStatusFilter">
+                            <option value="">All</option>
+                            <option value="done">Done</option>
+                            <option value="pending">Pending</option>
+                        </select>
+                        <label for="crewMonthFilter">📅 Month:</label>
+                        <select id="crewMonthFilter" style="min-width:150px;">
+                            <option value="">All Months</option>
+                        </select>
+                    </div>
+                    <div class="table-wrapper">
+                        <table class="pivot-table" id="crewCoverageTable">
+                            <thead>
+                                <tr>
+                                    <th>S.No</th>
+                                    <th>Crew ID</th>
+                                    <th>Crew Name</th>
+                                    <th>Desig.</th>
+                                    <th>Assigned NLI</th>
+                                    <th>BPA Count</th>
+                                    <th>Last BPA Date</th>
+                                    <th>Deficiencies</th>
+                                    <th>Status</th>
+                                    <th>View Records</th>
+                                </tr>
+                            </thead>
+                            <tbody id="crewCoverageBody"></tbody>
+                        </table>
+                    </div>
+                    <div id="crewPagination" class="pagination"></div>
+                    <div class="page-size-select">
+                        <label for="crewPageSize">Rows per page:</label>
+                        <select id="crewPageSize">
+                            <option value="25">25</option>
+                            <option value="50" selected>50</option>
+                            <option value="100">100</option>
+                            <option value="200">200</option>
+                            <option value="0">All</option>
+                        </select>
+                    </div>
+                </div>
+
+            </div><!-- end analyticsContent -->
+        </div><!-- end analyticsTab -->
+
+    </div><!-- end container -->
+
+    <script>
+        let allData = [];
+        let headers = [];
+        let filteredData = [];
+
+        const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSUipY3EyMiHBitcL_d_HeLvY6E6ln0ZhlQAkPPWlELNhSC9RxVLdSk5XJhGbgr-Nj1EO9U4eO934OL/pub?output=csv';
+        const CREW_MASTER_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRij45M4kHfCyy0wK29gREdmpP6rKQ3UWL37whfnL6mqWETYrjnyUMG19Ekkhpqk-SLE18I9IsskIz3/pub?gid=1037750800&single=true&output=csv';
+        let crewMasterMap = {};
+        let crewMasterData = [];   // Full crew master: [{crewId, crewName, nli, lobby, desig}]
+        let crewMasterNLIMap = {};  // crewId -> assigned NLI from master
+        let crewMasterDesigMap = {}; // crewId -> designation from master
+        let chartInstances = {};    // Track chart instances for cleanup
+        let mainCurrentPage = 1;
+        let mainPageSize = 50;
+        let crewCurrentPage = 1;
+        let crewPageSize = 50;
+        let defCurrentPage = 1;
+        let defPageSize = 25;
+
+        // Column mapping: { 'Original Column Name': 'Display Alias' }
+        const COLUMN_ALIASES = {
+            'S No': 'S.No',                                    // Auto-generated
+            'Date': 'Date',
+            "Crew's Nominated CLI": 'NLI',
+            'Crew ID': 'Crew ID',
+            'Crew Name': 'Crew Name',
+            'Section': 'Section',
+            'Train Number': 'Train No',
+            'Name of the CLI Analysis done by': 'Analyzed By',
+            'Deficiencies Observed': 'Deficiencies',
+            'Upload the Analysis Report': 'Report'
+        };
+
+        // Columns to display in the table (using original column names)
+        const DISPLAY_COLUMNS = Object.keys(COLUMN_ALIASES);
+
+        // Parse CSV text to array
+        function parseCSV(text) {
+            const lines = text.split('\n').filter(line => line.trim());
+            const result = [];
+            
+            for (let line of lines) {
+                const row = [];
+                let current = '';
+                let inQuotes = false;
+                
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    
+                    if (char === '"') {
+                        inQuotes = !inQuotes;
+                    } else if (char === ',' && !inQuotes) {
+                        row.push(current.trim());
+                        current = '';
+                    } else {
+                        current += char;
+                    }
+                }
+                row.push(current.trim());
+                result.push(row);
+            }
+            
+            return result;
+        }
+
+        // Convert date to MM-YYYY format
+        function getMonthYear(dateStr) {
+            if (!dateStr) return '';
+            
+            // Try to parse various date formats
+            let date;
+            
+            // Try ISO format (YYYY-MM-DD)
+            if (dateStr.match(/^\d{4}-\d{2}-\d{2}/)) {
+                date = new Date(dateStr);
+            }
+            // Try DD/MM/YYYY or DD-MM-YYYY
+            else if (dateStr.match(/^\d{1,2}[/-]\d{1,2}[/-]\d{4}/)) {
+                const parts = dateStr.split(/[/-]/);
+                date = new Date(parts[2], parts[1] - 1, parts[0]);
+            }
+            // Try MM/DD/YYYY
+            else {
+                date = new Date(dateStr);
+            }
+            
+            if (isNaN(date.getTime())) return '';
+            
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            
+            return `${month}-${year}`;
+        }
+
+        // Helper: convert dd-mm-yyyy to YYYYMMDD for correct date comparison
+        function dateToSortable(ds) {
+            if (!ds) return '';
+            const parts = ds.split(/[\/-]/);
+            if (parts.length === 3 && parts[2].length === 4) {
+                return parts[2] + parts[1].padStart(2,'0') + parts[0].padStart(2,'0');
+            }
+            return ds;
+        }
+
+        // Load Crew Master mapping (CREW ID -> correct CREW NAME)
+        async function loadCrewMaster() {
+            const corsProxies = [
+                '',
+                'https://api.allorigins.win/raw?url=',
+                'https://corsproxy.io/?'
+            ];
+            for (let i = 0; i < corsProxies.length; i++) {
+                try {
+                    const url = corsProxies[i] + encodeURIComponent(CREW_MASTER_CSV_URL);
+                    const finalUrl = corsProxies[i] === '' ? CREW_MASTER_CSV_URL : url;
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 15000);
+                    const response = await fetch(finalUrl, { method: 'GET', mode: 'cors', signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    const text = await response.text();
+                    if (!text || text.trim() === '') throw new Error('Empty response');
+                    const rows = parseCSV(text);
+                    if (rows.length === 0) throw new Error('No data in crew master CSV');
+                    const masterHeaders = rows[0];
+                    console.log('Crew master headers:', masterHeaders);
+                    console.log('Crew master first data row:', rows[1]);
+                    const crewIdIdx = masterHeaders.findIndex(h => h.trim().toUpperCase().replace(/[^A-Z ]/g, '').trim() === 'CREW ID');
+                    const crewNameIdx = masterHeaders.findIndex(h => h.trim().toUpperCase().replace(/[^A-Z ]/g, '').trim() === 'CREW NAME');
+                    // Try to find Designation column in crew master
+                    const desigIdx = masterHeaders.findIndex(h => {
+                        const n = h.trim().toUpperCase().replace(/[^A-Z ]/g, '').trim();
+                        return n === 'DESIG' || n === 'DESIGNATION' || n.includes('DESIG');
+                    });
+                    // Try to find NLI / CLI assignment column in crew master
+                    const nliIdx = masterHeaders.findIndex(h => {
+                        const n = h.trim().toUpperCase().replace(/[^A-Z ]/g, '').trim();
+                        return n === 'NOMINATED CLI' || n === 'NLI' || n === 'CLI' || n === 'CLI NAME'
+                            || n === 'CREWS NOMINATED CLI' || n.includes('NOMINATED') || n.includes('CLI');
+                    });
+                    console.log('CREW ID column index:', crewIdIdx, '| CREW NAME column index:', crewNameIdx, '| DESIG column index:', desigIdx, '| NLI column index:', nliIdx);
+                    if (crewIdIdx === -1 || crewNameIdx === -1) {
+                        console.error('Crew master CSV missing CREW ID or CREW NAME columns. Available headers:', masterHeaders);
+                        return;
+                    }
+                    crewMasterData = [];
+                    for (let r = 1; r < rows.length; r++) {
+                        const id = (rows[r][crewIdIdx] || '').trim();
+                        const name = (rows[r][crewNameIdx] || '').trim();
+                        const nli = nliIdx !== -1 ? (rows[r][nliIdx] || '').trim() : '';
+                        const desig = desigIdx !== -1 ? (rows[r][desigIdx] || '').trim() : '';
+                        if (id && !crewMasterMap[id]) {
+                            crewMasterMap[id] = name;
+                        }
+                        if (id && nli && !crewMasterNLIMap[id]) {
+                            crewMasterNLIMap[id] = nli;
+                        }
+                        if (id && desig && !crewMasterDesigMap[id]) {
+                            crewMasterDesigMap[id] = desig;
+                        }
+                        if (id) {
+                            // Derive location from Crew ID (first alpha prefix)
+                            const locMatch = id.match(/^([A-Z]+)/);
+                            const loc = locMatch ? locMatch[1] : '';
+                            crewMasterData.push({ crewId: id, crewName: name, nli: nli, location: loc, desig: desig });
+                        }
+                    }
+                    console.log('Crew master loaded successfully:', Object.keys(crewMasterMap).length, 'entries, NLI mappings:', Object.keys(crewMasterNLIMap).length);
+                    console.log('Sample entries:', Object.entries(crewMasterMap).slice(0, 3));
+                    return;
+                } catch (error) {
+                    console.error(`Crew master attempt ${i + 1} failed:`, error);
+                }
+            }
+        }
+
+        // Fetch and load CSV data
+        async function loadData() {
+            const corsProxies = [
+                '',  // Try direct first
+                'https://api.allorigins.win/raw?url=',
+                'https://corsproxy.io/?'
+            ];
+            
+            for (let i = 0; i < corsProxies.length; i++) {
+                try {
+                    const url = corsProxies[i] + encodeURIComponent(CSV_URL);
+                    const finalUrl = corsProxies[i] === '' ? CSV_URL : url;
+                    
+                    console.log(`Trying to fetch from: ${finalUrl}`);
+                    
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 15000);
+                    
+                    const response = await fetch(finalUrl, {
+                        method: 'GET',
+                        mode: 'cors',
+                        signal: controller.signal
+                    });
+                    
+                    clearTimeout(timeoutId);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    const text = await response.text();
+                    
+                    if (!text || text.trim() === '') {
+                        throw new Error('Empty response received');
+                    }
+                    
+                    const rows = parseCSV(text);
+                    
+                    if (rows.length === 0) {
+                        throw new Error('No data found in CSV');
+                    }
+                    
+                    headers = rows[0];
+                    allData = rows.slice(1).map(row => {
+                        const obj = {};
+                        headers.forEach((header, index) => {
+                            obj[header] = row[index] || '';
+                        });
+                        
+                        // Add computed fields
+                        obj['Section'] = `${obj['Braking Pattern From Station'] || ''}-${obj['Braking Pattern To Station'] || ''}`;
+                        obj['MonthYear'] = getMonthYear(obj['Date']);
+                        // S No will be generated dynamically during rendering
+                        
+                        return obj;
+                    }).filter(row => {
+                        // Filter out empty rows (Google Sheets exports hundreds of blank rows)
+                        return (row['Crew ID'] && row['Crew ID'].trim()) || 
+                               (row['Date'] && row['Date'].trim());
+                    });
+                    
+                    filteredData = [...allData];
+                    
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('dataTable').style.display = 'table';
+                    
+                    renderTable();
+                    await loadCrewMaster();
+                    populateFilters();
+                    updateRecordCount();
+                    renderAnalytics();
+                    
+                    console.log('Data loaded successfully!');
+                    return;
+                    
+                } catch (error) {
+                    console.error(`Attempt ${i + 1} failed:`, error);
+                    
+                    if (i === corsProxies.length - 1) {
+                        document.getElementById('loading').style.display = 'none';
+                        document.getElementById('error').innerHTML = `
+                            <strong>Failed to load data</strong><br><br>
+                            Error: ${error.message}<br><br>
+                            <strong>Possible solutions:</strong><br>
+                            1. Make sure the Google Sheets link is set to "Anyone with the link can view"<br>
+                            2. Try opening this page using a local web server instead of file:///<br>
+                            3. Check your internet connection<br>
+                            4. Check browser console for more details
+                        `;
+                        document.getElementById('error').style.display = 'block';
+                    }
+                }
+            }
+        }
+
+        // Shared pagination controls renderer
+        function renderPaginationControls(containerId, currentPage, totalPages, totalRows, pageSize, onPageChange) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            if (totalRows === 0 || totalPages <= 1) { container.innerHTML = ''; return; }
+
+            let html = '<div class="pagination">';
+            // Info
+            const startR = (currentPage - 1) * pageSize + 1;
+            const endR = Math.min(currentPage * pageSize, totalRows);
+            html += `<span style="margin-right:12px;font-size:0.85rem;color:#666;">Page ${currentPage} of ${totalPages} (${startR}-${endR} of ${totalRows})</span>`;
+
+            // First / Prev
+            html += `<button ${currentPage === 1 ? 'disabled' : ''} onclick="window._pgCb['${containerId}'](1)">&#171; First</button>`;
+            html += `<button ${currentPage === 1 ? 'disabled' : ''} onclick="window._pgCb['${containerId}'](${currentPage - 1})">&#8249; Prev</button>`;
+
+            // Page buttons (show max 7 around current)
+            const maxBtns = 7;
+            let startP = Math.max(1, currentPage - Math.floor(maxBtns / 2));
+            let endP = Math.min(totalPages, startP + maxBtns - 1);
+            if (endP - startP < maxBtns - 1) startP = Math.max(1, endP - maxBtns + 1);
+            if (startP > 1) html += '<span style="padding:0 4px;">...</span>';
+            for (let p = startP; p <= endP; p++) {
+                html += `<button class="${p === currentPage ? 'active' : ''}" onclick="window._pgCb['${containerId}'](${p})">${p}</button>`;
+            }
+            if (endP < totalPages) html += '<span style="padding:0 4px;">...</span>';
+
+            // Next / Last
+            html += `<button ${currentPage === totalPages ? 'disabled' : ''} onclick="window._pgCb['${containerId}'](${currentPage + 1})">Next &#8250;</button>`;
+            html += `<button ${currentPage === totalPages ? 'disabled' : ''} onclick="window._pgCb['${containerId}'](${totalPages})">Last &#187;</button>`;
+            html += '</div>';
+            container.innerHTML = html;
+
+            // Store callback on window for onclick access
+            if (!window._pgCb) window._pgCb = {};
+            window._pgCb[containerId] = onPageChange;
+        }
+
+        // Render table with pagination
+        function renderTable() {
+            const thead = document.getElementById('tableHead');
+            const tbody = document.getElementById('tableBody');
+            
+            // Create header with aliased column names
+            thead.innerHTML = `<tr>${DISPLAY_COLUMNS.map(col => 
+                `<th>${COLUMN_ALIASES[col] || col}</th>`
+            ).join('')}</tr>`;
+            
+            // Paginate
+            const totalRows = filteredData.length;
+            const pageSize = mainPageSize;
+            const totalPages = pageSize > 0 ? Math.ceil(totalRows / pageSize) : 1;
+            if (mainCurrentPage > totalPages) mainCurrentPage = totalPages || 1;
+            const startIdx = pageSize > 0 ? (mainCurrentPage - 1) * pageSize : 0;
+            const endIdx = pageSize > 0 ? Math.min(startIdx + pageSize, totalRows) : totalRows;
+            const pageData = filteredData.slice(startIdx, endIdx);
+            
+            // Create body with auto-generated S No
+            tbody.innerHTML = pageData.map((row, index) => {
+                const globalIdx = startIdx + index;
+                return `<tr>${DISPLAY_COLUMNS.map(col => {
+                    // Auto-generate S No based on global index
+                    if (col === 'S No') {
+                        return `<td class="sno-cell">${globalIdx + 1}</td>`;
+                    }
+                    
+                    let value = row[col] || '';
+                    
+                    // Special handling for Upload the Analysis Report column
+                    if (col === 'Upload the Analysis Report' && value) {
+                        // Check if it's a URL
+                        if (value.startsWith('http://') || value.startsWith('https://')) {
+                            return `<td><a href="${value}" target="_blank" class="report-link">View Report</a></td>`;
+                        }
+                    }
+                    
+                    return `<td>${value}</td>`;
+                }).join('')}</tr>`;
+            }).join('');
+            
+            renderPaginationControls('mainPagination', mainCurrentPage, totalPages, totalRows, pageSize, function(page) {
+                mainCurrentPage = page;
+                renderTable();
+                updateRecordCount();
+            });
+        }
+
+        // Get unique values for a column from filtered data
+        function getUniqueValues(columnName, additionalFilters = {}, locationFilter = '') {
+            let data = [...allData];
+            
+            // Apply location filter first (filters where Crew ID contains the location value)
+            if (locationFilter) {
+                data = data.filter(row => {
+                    const crewId = row['Crew ID'] || '';
+                    return crewId.includes(locationFilter);
+                });
+            }
+            
+            // Apply additional filters
+            for (let [key, value] of Object.entries(additionalFilters)) {
+                if (value) {
+                    data = data.filter(row => row[key] === value);
+                }
+            }
+            
+            const values = [...new Set(data.map(row => row[columnName]).filter(v => v))];
+            return values.sort();
+        }
+
+        // Populate filter dropdowns with cascading logic
+        function populateFilters() {
+            const locationFilter = document.getElementById('locationFilter');
+            const cliFilter = document.getElementById('cliFilter');
+            const crewFilter = document.getElementById('crewFilter');
+            const monthFilter = document.getElementById('monthFilter');
+            
+            const currentLocation = locationFilter.value;
+            const currentCLI = cliFilter.value;
+            const currentCrew = crewFilter.value;
+            const currentMonth = monthFilter.value;
+            
+            // NLI filter is always enabled — shows all NLIs, or location-filtered NLIs
+            cliFilter.disabled = false;
+            const cliValues = getUniqueValues("Crew's Nominated CLI", {}, currentLocation);
+            cliFilter.innerHTML = '<option value="">All</option>' + 
+                cliValues.map(v => `<option value="${v}" ${v === currentCLI ? 'selected' : ''}>${v}</option>`).join('');
+            
+            // Month filter is always independent — populated based on location + NLI context
+            const monthFilters = {};
+            if (currentLocation) monthFilters['_location'] = currentLocation;
+            if (currentCLI) monthFilters["Crew's Nominated CLI"] = currentCLI;
+            const monthValues = getUniqueValues("MonthYear", 
+                currentCLI ? { "Crew's Nominated CLI": currentCLI } : {}, 
+                currentLocation
+            );
+            monthFilter.innerHTML = '<option value="">All</option>' + 
+                monthValues.map(v => `<option value="${v}" ${v === currentMonth ? 'selected' : ''}>${v}</option>`).join('');
+            
+            // If neither location nor NLI is selected, disable Crew only
+            if (!currentLocation && !currentCLI) {
+                crewFilter.disabled = true;
+                crewFilter.innerHTML = '<option value="">All</option>';
+                return;
+            }
+            
+            // Enable Crew filter if NLI is selected
+            if (currentCLI) {
+                crewFilter.disabled = false;
+            } else {
+                crewFilter.disabled = true;
+                crewFilter.innerHTML = '<option value="">All</option>';
+                return;
+            }
+            
+            // Populate Crew filter with CREW ID - Master Name (uses Crew ID as key)
+            const crewIds = getUniqueValues("Crew ID", {
+                "Crew's Nominated CLI": cliFilter.value
+            }, currentLocation);
+            crewFilter.innerHTML = '<option value="">All</option>' + 
+                crewIds.map(id => {
+                    const masterName = crewMasterMap[id] || id;
+                    const display = `${id} - ${masterName}`;
+                    return `<option value="${id}" ${id === currentCrew ? 'selected' : ''}>${display}</option>`;
+                }).join('');
+        }
+
+        // Apply filters
+        function applyFilters() {
+            const locationValue = document.getElementById('locationFilter').value;
+            const cliValue = document.getElementById('cliFilter').value;
+            const crewValue = document.getElementById('crewFilter').value;
+            const monthValue = document.getElementById('monthFilter').value;
+            
+            filteredData = allData.filter(row => {
+                // Location filter checks if Crew ID contains the location value
+                const locationMatch = !locationValue || (row['Crew ID'] || '').includes(locationValue);
+                return locationMatch &&
+                       (!cliValue || row["Name of the CLI Analysis done by"] === cliValue) &&
+                       (!crewValue || row["Crew ID"] === crewValue) &&
+                       (!monthValue || row["MonthYear"] === monthValue);
+            });
+            
+            mainCurrentPage = 1;
+            renderTable();
+            updateRecordCount();
+        }
+
+        // Update record count
+        function updateRecordCount() {
+            const count = filteredData.length;
+            const total = allData.length;
+            const pageSize = mainPageSize;
+            const totalPages = pageSize > 0 ? Math.ceil(count / pageSize) : 1;
+            const startIdx = pageSize > 0 ? (mainCurrentPage - 1) * pageSize + 1 : 1;
+            const endIdx = pageSize > 0 ? Math.min(mainCurrentPage * pageSize, count) : count;
+            if (count > 0 && pageSize > 0) {
+                document.getElementById('recordCount').textContent = 
+                    `Showing ${startIdx}-${endIdx} of ${count} records (${total} total)`;
+            } else {
+                document.getElementById('recordCount').textContent = 
+                    `Showing ${count} of ${total} records`;
+            }
+        }
+
+        // Reset all filters
+        function resetFilters() {
+            document.getElementById('locationFilter').value = '';
+            document.getElementById('cliFilter').value = '';
+            document.getElementById('crewFilter').value = '';
+            document.getElementById('monthFilter').value = '';
+            document.getElementById('crewFilter').disabled = true;
+            populateFilters();
+            applyFilters();
+        }
+
+        // Event listeners for cascading filters
+        document.getElementById('locationFilter').addEventListener('change', function() {
+            document.getElementById('cliFilter').value = '';
+            document.getElementById('crewFilter').value = '';
+            populateFilters();
+            applyFilters();
+        });
+
+        document.getElementById('cliFilter').addEventListener('change', function() {
+            document.getElementById('crewFilter').value = '';
+            populateFilters();
+            applyFilters();
+        });
+
+        document.getElementById('crewFilter').addEventListener('change', function() {
+            populateFilters();
+            applyFilters();
+        });
+
+        document.getElementById('monthFilter').addEventListener('change', applyFilters);
+
+        // ============ TAB SWITCHING ============
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            if (tabName === 'mainData') {
+                document.getElementById('mainDataTab').classList.add('active');
+                document.getElementById('tabMainData').classList.add('active');
+            } else {
+                document.getElementById('analyticsTab').classList.add('active');
+                document.getElementById('tabAnalytics').classList.add('active');
+                // Re-render charts when tab becomes visible
+                setTimeout(() => {
+                    Object.values(chartInstances).forEach(c => c && c.resize && c.resize());
+                }, 100);
+            }
+        }
+
+        // Navigate to Main Data tab with specific NLI/Crew filter
+        function viewInMainTab(nliName, crewId) {
+            switchTab('mainData');
+            const locations = ['BAY','BGM','BJP','CLR','HPT','UBL','VSG','TNGL'];
+            
+            // If crewId is given, determine location from it; otherwise leave location blank
+            if (crewId) {
+                const matchedLoc = locations.find(loc => crewId.includes(loc)) || '';
+                document.getElementById('locationFilter').value = matchedLoc;
+            } else {
+                // Show all records for the NLI across all locations
+                document.getElementById('locationFilter').value = '';
+            }
+            
+            document.getElementById('crewFilter').value = '';
+            document.getElementById('monthFilter').value = '';
+            populateFilters();
+            
+            if (nliName) {
+                document.getElementById('cliFilter').value = nliName;
+                populateFilters();
+            }
+            if (crewId) {
+                document.getElementById('crewFilter').value = crewId;
+                populateFilters();
+            }
+            mainCurrentPage = 1;
+            applyFilters();
+        }
+
+        // ============ ANALYTICS RENDERING ============
+        function renderAnalytics() {
+            document.getElementById('analyticsLoading').style.display = 'none';
+            document.getElementById('analyticsContent').style.display = 'block';
+
+            // ---- Build NLI -> crew assignment map ----
+            // Priority: use crew master NLI column if available, else derive from BPA data
+            const nliCrewMap = {};  // nli -> Set of crewIds (assigned)
+            const hasMasterNLI = Object.keys(crewMasterNLIMap).length > 0;
+
+            if (hasMasterNLI) {
+                // Build from crew master
+                crewMasterData.forEach(cm => {
+                    if (cm.nli) {
+                        if (!nliCrewMap[cm.nli]) nliCrewMap[cm.nli] = new Set();
+                        nliCrewMap[cm.nli].add(cm.crewId);
+                    }
+                });
+            }
+            // Also add from BPA data (catch any not in master)
+            allData.forEach(row => {
+                const nli = row["Crew's Nominated CLI"] || '';
+                const crewId = row["Crew ID"] || '';
+                if (nli && crewId) {
+                    if (!nliCrewMap[nli]) nliCrewMap[nli] = new Set();
+                    nliCrewMap[nli].add(crewId);
+                }
+            });
+
+            // ---- BPA done tracking ----
+            const nliBPAMap = {};     // nli -> { crewId -> { count, lastDate, rows[] } }
+            const locationBPACount = {};
+            const monthBPACount = {};
+
+            allData.forEach(row => {
+                const nli = row["Crew's Nominated CLI"] || '';
+                const crewId = row["Crew ID"] || '';
+                const dateStr = row['Date'] || '';
+                const monthYear = row['MonthYear'] || '';
+                const locations = ['BAY','BGM','BJP','CLR','HPT','UBL','VSG','TNGL'];
+                const loc = locations.find(l => crewId.includes(l)) || 'Other';
+
+                if (nli) {
+                    if (!nliBPAMap[nli]) nliBPAMap[nli] = {};
+                    if (!nliBPAMap[nli][crewId]) nliBPAMap[nli][crewId] = { count: 0, lastDate: '', dates: [] };
+                    nliBPAMap[nli][crewId].count++;
+                    nliBPAMap[nli][crewId].dates.push(dateStr);
+                    if (dateToSortable(dateStr) > dateToSortable(nliBPAMap[nli][crewId].lastDate)) {
+                        nliBPAMap[nli][crewId].lastDate = dateStr;
+                    }
+                }
+
+                locationBPACount[loc] = (locationBPACount[loc] || 0) + 1;
+                if (monthYear) monthBPACount[monthYear] = (monthBPACount[monthYear] || 0) + 1;
+            });
+
+            // ---- CLI (Analyzed By) BPA tracking ----
+            const cliBPAMap = {};  // cliName -> { crewIds: Set, nlis: Set, count, lastDate, dates[] }
+            allData.forEach(row => {
+                const cli = (row['Name of the CLI Analysis done by'] || '').trim();
+                const crewId = row['Crew ID'] || '';
+                const nli = row["Crew's Nominated CLI"] || '';
+                const dateStr = row['Date'] || '';
+                if (cli) {
+                    if (!cliBPAMap[cli]) cliBPAMap[cli] = { crewIds: new Set(), nlis: new Set(), count: 0, lastDate: '', dates: [] };
+                    cliBPAMap[cli].count++;
+                    cliBPAMap[cli].dates.push(dateStr);
+                    if (crewId) cliBPAMap[cli].crewIds.add(crewId);
+                    if (nli) cliBPAMap[cli].nlis.add(nli);
+                    if (dateToSortable(dateStr) > dateToSortable(cliBPAMap[cli].lastDate)) cliBPAMap[cli].lastDate = dateStr;
+                }
+            });
+
+            // ---- Build BPA tracking by Analyzer (owner) with month breakdown ----
+            // Owner of BPA = "Name of the CLI Analysis done by"
+            // Nominated LP BPA = where "Crew's Nominated CLI" === analyzer name
+            const analyzerBPAMap = {}; // analyzerName -> { monthYear -> { nominated, other, total, nominatedCrews: Set, allCrews: Set } }
+            allData.forEach(row => {
+                const analyzer = (row['Name of the CLI Analysis done by'] || '').trim();
+                const nominatedCLI = (row["Crew's Nominated CLI"] || '').trim();
+                const crewId = row["Crew ID"] || '';
+                const monthYear = row['MonthYear'] || '';
+                if (!analyzer) return;
+                if (!analyzerBPAMap[analyzer]) analyzerBPAMap[analyzer] = {};
+                if (!analyzerBPAMap[analyzer][monthYear]) {
+                    analyzerBPAMap[analyzer][monthYear] = { nominated: 0, other: 0, total: 0, nominatedCrews: new Set(), allCrews: new Set() };
+                }
+                const isNominated = (nominatedCLI === analyzer);
+                analyzerBPAMap[analyzer][monthYear].total++;
+                if (isNominated) {
+                    analyzerBPAMap[analyzer][monthYear].nominated++;
+                    if (crewId) analyzerBPAMap[analyzer][monthYear].nominatedCrews.add(crewId);
+                } else {
+                    analyzerBPAMap[analyzer][monthYear].other++;
+                }
+                if (crewId) analyzerBPAMap[analyzer][monthYear].allCrews.add(crewId);
+            });
+
+            // ---- Build sorted month list for analytics filters ----
+            const allAnalyticsMonths = Object.keys(monthBPACount).sort((a, b) => {
+                const [ma, ya] = a.split('-').map(Number);
+                const [mb, yb] = b.split('-').map(Number);
+                return (yb * 100 + mb) - (ya * 100 + ma);
+            });
+            const monthOptionHTML = '<option value="">All Months</option>' +
+                allAnalyticsMonths.map(m => `<option value="${m}">${m}</option>`).join('');
+            document.getElementById('liMonthFilter').innerHTML = monthOptionHTML;
+            document.getElementById('cliMonthFilter').innerHTML = monthOptionHTML;
+            document.getElementById('defMonthFilter').innerHTML = monthOptionHTML;
+            document.getElementById('crewMonthFilter').innerHTML = monthOptionHTML;
+            document.getElementById('chartMonthFilter').innerHTML = monthOptionHTML;
+            document.getElementById('lobbyChartMonthFilter').innerHTML = monthOptionHTML;
+            document.getElementById('workloadChartMonthFilter').innerHTML = monthOptionHTML;
+            document.getElementById('kpiMonthFilter').innerHTML = '<option value="">All Months (Cumulative)</option>' +
+                allAnalyticsMonths.map(m => `<option value="${m}">${m}</option>`).join('');
+
+            // ---- Deficiency Tracking ----
+            function isNonNilDeficiency(val) {
+                if (!val) return false;
+                const normalized = val.trim().toUpperCase();
+                return normalized !== '' && normalized !== 'NIL' && normalized !== 'NA' && normalized !== 'N/A' && normalized !== '-' && normalized !== 'NONE';
+            }
+
+            const nliDefCount = {};    // nli -> count of non-NIL deficiencies
+            const cliDefCount = {};    // cli -> count of non-NIL deficiencies
+            const crewDefCount = {};   // crewId -> count of non-NIL deficiencies
+            const deficiencyRecords = [];
+
+            allData.forEach(row => {
+                const defText = (row['Deficiencies Observed'] || '').trim();
+                if (isNonNilDeficiency(defText)) {
+                    const nli = row["Crew's Nominated CLI"] || '';
+                    const cli = (row['Name of the CLI Analysis done by'] || '').trim();
+                    const crewId = row['Crew ID'] || '';
+                    const crewName = crewMasterMap[crewId] || row['Crew Name'] || '';
+                    const dateStr = row['Date'] || '';
+                    const report = row['Upload the Analysis Report'] || '';
+                    const section = row['Section'] || '';
+                    const trainNo = row['Train Number'] || '';
+
+                    if (nli) nliDefCount[nli] = (nliDefCount[nli] || 0) + 1;
+                    if (cli) cliDefCount[cli] = (cliDefCount[cli] || 0) + 1;
+                    if (crewId) crewDefCount[crewId] = (crewDefCount[crewId] || 0) + 1;
+
+                    deficiencyRecords.push({ date: dateStr, crewId, crewName, nli, cli, deficiency: defText, report, section, trainNo, monthYear: getMonthYear(dateStr) });
+                }
+            });
+
+            const totalDeficiencies = deficiencyRecords.length;
+
+            // ---- Get all unique LI names (analyzers) and NLIs ----
+            const allLIs = [...new Set(Object.keys(analyzerBPAMap))].sort();
+            const allNLIs = [...new Set([...Object.keys(nliCrewMap), ...allLIs])].sort();
+
+            // ---- KPI update — driven by refreshKPIs() ----
+            function refreshKPIs() {
+                const selectedMonth = document.getElementById('kpiMonthFilter').value;
+                const filteredRows = selectedMonth
+                    ? allData.filter(r => getMonthYear(r['Date'] || '') === selectedMonth)
+                    : allData;
+
+                const totalBPAs = filteredRows.length;
+                const crewIdsDone = new Set(filteredRows.map(r => r['Crew ID']).filter(Boolean));
+                const activeLISet = new Set(filteredRows.map(r => (r['Name of the CLI Analysis done by'] || '').trim()).filter(Boolean));
+
+                let totalTarget = 0, totalNominatedBPAs = 0;
+                allLIs.forEach(li => {
+                    const nlpCount = (nliCrewMap[li] || new Set()).size;
+                    totalTarget += 2 * nlpCount;
+                    if (selectedMonth) {
+                        const md = (analyzerBPAMap[li] || {})[selectedMonth];
+                        if (md) totalNominatedBPAs += md.nominated;
+                    } else {
+                        Object.values(analyzerBPAMap[li] || {}).forEach(md => totalNominatedBPAs += md.nominated);
+                    }
+                });
+                const achievement = totalTarget > 0 ? Math.round((totalNominatedBPAs / totalTarget) * 100) : 0;
+
+                const filteredDefCount = selectedMonth
+                    ? deficiencyRecords.filter(r => r.monthYear === selectedMonth).length
+                    : deficiencyRecords.length;
+
+                document.getElementById('kpiTotalBPA').textContent = totalBPAs;
+                document.getElementById('kpiCrewsCovered').textContent = crewIdsDone.size;
+                document.getElementById('kpiActiveLIs').textContent = activeLISet.size;
+                document.getElementById('kpiTotalTarget').textContent = totalTarget;
+                document.getElementById('kpiNominatedBPAs').textContent = totalNominatedBPAs;
+                document.getElementById('kpiCompletionRate').textContent = achievement + '%';
+                document.getElementById('kpiDeficiencies').textContent = filteredDefCount;
+            }
+            refreshKPIs();
+
+            // ---- Helper: build deficiency counts for a month ----
+            function getDefCountsForMonth(selectedMonth, byField) {
+                const recs = selectedMonth ? deficiencyRecords.filter(r => r.monthYear === selectedMonth) : deficiencyRecords;
+                const counts = {};
+                recs.forEach(r => { const k = r[byField]; if (k) counts[k] = (counts[k] || 0) + 1; });
+                return counts;
+            }
+
+            // ---- Helper: re-render LI Performance with current filters ----
+            function refreshLIPerformance() {
+                const loc = document.getElementById('analyticsLocationFilter').value;
+                const month = document.getElementById('liMonthFilter').value;
+                const defCounts = getDefCountsForMonth(month, 'cli');
+                renderLIPerformance(nliCrewMap, analyzerBPAMap, loc, month ? defCounts : cliDefCount, month);
+            }
+
+            // ---- Helper: re-render CLI Pivot with current filters ----
+            function refreshCLIPivot() {
+                const loc = document.getElementById('cliPivotLocationFilter').value;
+                const month = document.getElementById('cliMonthFilter').value;
+                renderCLIPivot(cliBPAMap, loc, cliDefCount, month);
+            }
+
+            // ---- Helper: re-render Deficiency table with current filters ----
+            function refreshDeficiencyTable() {
+                const month = document.getElementById('defMonthFilter').value;
+                const recs = month ? deficiencyRecords.filter(r => r.monthYear === month) : deficiencyRecords;
+                defCurrentPage = 1;
+                renderDeficiencyDetail(recs);
+            }
+
+            // ---- Helper: re-render Crew Coverage with current filters ----
+            function refreshCrewCoverage() {
+                const f = getCrewFilters();
+                crewCurrentPage = 1;
+                renderCrewCoverage(nliCrewMap, nliBPAMap, f.nli, f.status, f.desig, crewDefCount, f.month);
+            }
+
+            // Initial renders
+            refreshLIPerformance();
+            renderDeficiencyDetail(deficiencyRecords);
+
+            // ---- Helper: re-render Charts with month filters ----
+            function refreshCharts() {
+                const globalMonth = document.getElementById('chartMonthFilter').value;
+                const lobbyMonth = document.getElementById('lobbyChartMonthFilter').value;
+                const workloadMonth = document.getElementById('workloadChartMonthFilter').value;
+                renderCharts(nliCrewMap, nliBPAMap, allData, monthBPACount, allNLIs, globalMonth, lobbyMonth, workloadMonth);
+            }
+            refreshCharts();
+
+            // ---- Render CLI Pivot Table ----
+            renderCLIPivot(cliBPAMap, '', cliDefCount, '');
+
+            // ---- Render Crew Coverage Table ----
+            renderCrewCoverage(nliCrewMap, nliBPAMap, '', '', '', crewDefCount, '');
+
+            // ---- Render Monthly Breakdown (by Analyzer = owner) ----
+            renderMonthlyBreakdown(analyzerBPAMap, monthBPACount, allLIs);
+
+            // ---- Render Monthly Nominated LP BPA Breakdown ----
+            renderMonthlyCLIBreakdown(analyzerBPAMap, monthBPACount, allLIs);
+
+            // ---- Wire analytics filters ----
+
+            // KPI month filter
+            document.getElementById('kpiMonthFilter').addEventListener('change', refreshKPIs);
+
+            // Chart month filters
+            document.getElementById('chartMonthFilter').addEventListener('change', function() {
+                // When global changes, sync per-chart filters to match (unless they have their own override)
+                refreshCharts();
+            });
+            document.getElementById('lobbyChartMonthFilter').addEventListener('change', refreshCharts);
+            document.getElementById('workloadChartMonthFilter').addEventListener('change', refreshCharts);
+
+            // LI Performance filters
+            document.getElementById('analyticsLocationFilter').addEventListener('change', refreshLIPerformance);
+            document.getElementById('liMonthFilter').addEventListener('change', refreshLIPerformance);
+
+            // CLI Pivot filters
+            document.getElementById('cliPivotLocationFilter').addEventListener('change', refreshCLIPivot);
+            document.getElementById('cliMonthFilter').addEventListener('change', refreshCLIPivot);
+
+            // Deficiency month filter
+            document.getElementById('defMonthFilter').addEventListener('change', refreshDeficiencyTable);
+
+            // Populate NLI filter for crew coverage
+            const crewNLISelect = document.getElementById('crewNLIFilter');
+            crewNLISelect.innerHTML = '<option value="">All NLIs</option>' +
+                allNLIs.sort().map(n => `<option value="${n}">${n}</option>`).join('');
+
+            // Populate Designation filter for crew coverage
+            const crewDesigSelect = document.getElementById('crewDesigFilter');
+            const allDesigs = [...new Set(crewMasterData.map(cm => cm.desig).filter(d => d))].sort();
+            crewDesigSelect.innerHTML = '<option value="">All</option>' +
+                allDesigs.map(d => `<option value="${d}">${d}</option>`).join('');
+
+            const getCrewFilters = () => ({
+                nli: document.getElementById('crewNLIFilter').value,
+                desig: document.getElementById('crewDesigFilter').value,
+                status: document.getElementById('crewStatusFilter').value,
+                month: document.getElementById('crewMonthFilter').value
+            });
+
+            crewNLISelect.addEventListener('change', refreshCrewCoverage);
+            crewDesigSelect.addEventListener('change', refreshCrewCoverage);
+            document.getElementById('crewStatusFilter').addEventListener('change', refreshCrewCoverage);
+            document.getElementById('crewMonthFilter').addEventListener('change', refreshCrewCoverage);
+
+            // Page size selectors
+            document.getElementById('mainPageSize').addEventListener('change', function() {
+                mainPageSize = this.value === '0' ? 0 : (parseInt(this.value) || 50);
+                mainCurrentPage = 1;
+                renderTable();
+                updateRecordCount();
+            });
+            document.getElementById('crewPageSize').addEventListener('change', function() {
+                crewPageSize = this.value === '0' ? 0 : (parseInt(this.value) || 50);
+                refreshCrewCoverage();
+            });
+            document.getElementById('defPageSize').addEventListener('change', function() {
+                defPageSize = this.value === '0' ? 0 : (parseInt(this.value) || 25);
+                refreshDeficiencyTable();
+            });
+        }
+
+        // ---- CHARTS ----
+        function renderCharts(nliCrewMap, nliBPAMap, allData, monthBPACount, allNLIs, selectedMonth, lobbyMonth, workloadMonth) {
+            const colors = ['#667eea','#764ba2','#11998e','#38ef7d','#f2994a','#f2c94c','#e74c3c','#3498db','#9b59b6','#1abc9c','#e67e22','#2ecc71','#c0392b','#2980b9'];
+
+            // Destroy existing charts
+            Object.keys(chartInstances).forEach(key => {
+                if (chartInstances[key]) { chartInstances[key].destroy(); chartInstances[key] = null; }
+            });
+
+            // Effective month for lobby chart: per-chart filter overrides global
+            const effectiveLobbyMonth = lobbyMonth || selectedMonth;
+            // Effective month for workload chart: per-chart filter overrides global
+            const effectiveWorkloadMonth = workloadMonth || selectedMonth;
+
+            // Filter data by month for global charts (NLI Completion + Trend)
+            const filteredData = selectedMonth
+                ? allData.filter(row => getMonthYear(row['Date'] || '') === selectedMonth)
+                : allData;
+
+            // Filter data for lobby chart
+            const lobbyFilteredData = effectiveLobbyMonth
+                ? allData.filter(row => getMonthYear(row['Date'] || '') === effectiveLobbyMonth)
+                : allData;
+
+            // 1. NLI Completion Bar Chart — crews covered vs pending
+            const nliLabels = allNLIs.sort();
+            const nliDone = nliLabels.map(nli => {
+                const bpa = nliBPAMap[nli] || {};
+                if (!selectedMonth) return Object.keys(bpa).length;
+                let crewsInMonth = 0;
+                Object.entries(bpa).forEach(([crewId, c]) => {
+                    if (c.dates.some(d => getMonthYear(d) === selectedMonth)) crewsInMonth++;
+                });
+                return crewsInMonth;
+            });
+            const nliAssigned = nliLabels.map(nli => (nliCrewMap[nli] || new Set()).size);
+            const nliPending = nliLabels.map((nli, i) => Math.max(0, nliAssigned[i] - nliDone[i]));
+
+            chartInstances.nliCompletion = new Chart(document.getElementById('chartNLICompletion'), {
+                type: 'bar',
+                data: {
+                    labels: nliLabels,
+                    datasets: [
+                        { label: 'Crews Covered', data: nliDone, backgroundColor: '#27ae60' },
+                        { label: 'Crews Pending', data: nliPending, backgroundColor: '#e74c3c' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { position: 'top' } },
+                    scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Number of Crews' } } }
+                }
+            });
+
+            // 2. Location Distribution Doughnut — uses its own month filter
+            const chartLocations = ['BAY','BGM','BJP','CLR','HPT','UBL','VSG','TNGL'];
+            const filteredLocCount = {};
+            lobbyFilteredData.forEach(row => {
+                const crewId = row['Crew ID'] || '';
+                const loc = chartLocations.find(l => crewId.includes(l)) || 'Other';
+                filteredLocCount[loc] = (filteredLocCount[loc] || 0) + 1;
+            });
+            const locLabels = Object.keys(filteredLocCount).sort();
+            const locValues = locLabels.map(l => filteredLocCount[l]);
+            chartInstances.locationDist = new Chart(document.getElementById('chartLocationDist'), {
+                type: 'doughnut',
+                data: {
+                    labels: locLabels,
+                    datasets: [{ data: locValues, backgroundColor: colors.slice(0, locLabels.length) }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { position: 'right' } }
+                }
+            });
+
+            // 3. Monthly Trend Line — always show full trend, highlight selected month
+            const monthLabels = Object.keys(monthBPACount).sort((a, b) => {
+                const [ma, ya] = a.split('-').map(Number);
+                const [mb, yb] = b.split('-').map(Number);
+                return (ya * 100 + ma) - (yb * 100 + mb);
+            });
+            const monthValues = monthLabels.map(m => monthBPACount[m]);
+            const pointBgColors = monthLabels.map(m => m === selectedMonth ? '#e74c3c' : '#667eea');
+            const pointRadii = monthLabels.map(m => m === selectedMonth ? 10 : 5);
+            chartInstances.monthlyTrend = new Chart(document.getElementById('chartMonthlyTrend'), {
+                type: 'line',
+                data: {
+                    labels: monthLabels,
+                    datasets: [{
+                        label: 'BPAs per Month',
+                        data: monthValues,
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102,126,234,0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        pointBackgroundColor: pointBgColors,
+                        pointRadius: pointRadii
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: { y: { beginAtZero: true, title: { display: true, text: 'Count' } } }
+                }
+            });
+
+            // 4. NLI Workload Bar — uses its own month filter
+            const nliWorkload = nliLabels.map(nli => {
+                const bpa = nliBPAMap[nli] || {};
+                if (!effectiveWorkloadMonth) return Object.values(bpa).reduce((sum, c) => sum + c.count, 0);
+                let count = 0;
+                Object.values(bpa).forEach(c => {
+                    c.dates.forEach(d => { if (getMonthYear(d) === effectiveWorkloadMonth) count++; });
+                });
+                return count;
+            });
+            chartInstances.nliWorkload = new Chart(document.getElementById('chartNLIWorkload'), {
+                type: 'bar',
+                data: {
+                    labels: nliLabels,
+                    datasets: [{
+                        label: 'Total BPAs Conducted',
+                        data: nliWorkload,
+                        backgroundColor: colors.slice(0, nliLabels.length)
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: { y: { beginAtZero: true, title: { display: true, text: 'BPA Count' } } }
+                }
+            });
+        }
+
+        // ---- LI PERFORMANCE TABLE (Target vs Achievement) ----
+        // Owner = "Name of the CLI Analysis done by"
+        // Nominated LPs = crews where "Crew's Nominated CLI" = LI name
+        // Monthly Target = 2 × Nominated LPs
+        // NLP BPAs = BPAs where analyzer did BPA for their own nominated LP
+        function renderLIPerformance(nliCrewMap, analyzerBPAMap, locationFilter, defCountMap, selectedMonth) {
+            defCountMap = defCountMap || {};
+            const tbody = document.getElementById('nliPivotBody');
+            const locations = ['BAY','BGM','BJP','CLR','HPT','UBL','VSG','TNGL'];
+
+            // Get all unique LIs (have nominated LPs or have done BPAs)
+            let lis = [...new Set([...Object.keys(nliCrewMap), ...Object.keys(analyzerBPAMap)])].sort();
+
+            // Determine location for each LI from their nominated LPs' crew IDs
+            const liLocationMap = {};
+            lis.forEach(li => {
+                const crewIds = [...(nliCrewMap[li] || [])];
+                const locCounts = {};
+                crewIds.forEach(cid => {
+                    const loc = locations.find(l => cid.includes(l)) || 'Other';
+                    locCounts[loc] = (locCounts[loc] || 0) + 1;
+                });
+                liLocationMap[li] = Object.entries(locCounts).sort((a,b) => b[1]-a[1])[0]?.[0] || '';
+            });
+
+            if (locationFilter) {
+                lis = lis.filter(li => liLocationMap[li] === locationFilter);
+            }
+
+            let html = '';
+            let grandTarget = 0, grandNominated = 0, grandOther = 0, grandTotal = 0;
+            let allNLPIds = new Set();
+
+            lis.forEach((li, idx) => {
+                const nominatedLPs = (nliCrewMap[li] || new Set()).size;
+                const monthlyTarget = 2 * nominatedLPs;
+                const loc = liLocationMap[li] || '';
+
+                // Get BPA stats for this LI
+                const monthMap = analyzerBPAMap[li] || {};
+                let nominated = 0, other = 0, total = 0;
+
+                if (selectedMonth) {
+                    const md = monthMap[selectedMonth];
+                    if (md) { nominated = md.nominated; other = md.other; total = md.total; }
+                } else {
+                    Object.values(monthMap).forEach(md => {
+                        nominated += md.nominated; other += md.other; total += md.total;
+                    });
+                }
+
+                const achievement = monthlyTarget > 0 ? Math.round((nominated / monthlyTarget) * 100) : (total > 0 ? 100 : 0);
+                const defCount = defCountMap[li] || 0;
+
+                // Color the achievement bar
+                let barBg = 'linear-gradient(90deg, #e74c3c, #c0392b)';
+                if (achievement >= 100) barBg = 'linear-gradient(90deg, #27ae60, #2ecc71)';
+                else if (achievement >= 50) barBg = 'linear-gradient(90deg, #f2994a, #f2c94c)';
+
+                grandTarget += monthlyTarget;
+                grandNominated += nominated;
+                grandOther += other;
+                grandTotal += total;
+                (nliCrewMap[li] || new Set()).forEach(id => allNLPIds.add(id));
+
+                html += `<tr>
+                    <td class="sno-cell">${idx + 1}</td>
+                    <td><strong>${li}</strong></td>
+                    <td>${loc}</td>
+                    <td>${nominatedLPs}</td>
+                    <td>${monthlyTarget}</td>
+                    <td class="status-done">${nominated}</td>
+                    <td>${other}</td>
+                    <td>${total}</td>
+                    <td style="text-align:center;${defCount > 0 ? 'font-weight:700;color:#e74c3c;' : 'color:#999;'}">${defCount || '-'}</td>
+                    <td>
+                        <div class="progress-bar-wrapper">
+                            <div class="progress-bar-fill" style="width:${Math.min(achievement, 100)}%;background:${barBg}">${achievement}%</div>
+                        </div>
+                    </td>
+                    <td><button class="hyperlink-btn" onclick="filterMainByCLI('${li.replace(/'/g, "\\'")}', '${selectedMonth || ''}')">\ud83d\udcca View</button></td>
+                </tr>`;
+            });
+
+            // Grand total row
+            const grandAchievement = grandTarget > 0 ? Math.round((grandNominated / grandTarget) * 100) : 0;
+            html += `<tr style="background:#f0f4ff;font-weight:700;">
+                <td></td>
+                <td><strong>TOTAL</strong></td>
+                <td></td>
+                <td>${allNLPIds.size}</td>
+                <td>${grandTarget}</td>
+                <td class="status-done">${grandNominated}</td>
+                <td>${grandOther}</td>
+                <td>${grandTotal}</td>
+                <td></td>
+                <td>
+                    <div class="progress-bar-wrapper">
+                        <div class="progress-bar-fill" style="width:${Math.min(grandAchievement, 100)}%">${grandAchievement}%</div>
+                    </div>
+                </td>
+                <td></td>
+            </tr>`;
+
+            tbody.innerHTML = html || '<tr><td colspan="11" style="text-align:center;padding:20px;color:#999;">No data available</td></tr>';
+        }
+
+        // ---- CLI PIVOT TABLE ----
+        function renderCLIPivot(cliBPAMap, locationFilter, cliDefCount, monthFilter) {
+            cliDefCount = cliDefCount || {};
+            const tbody = document.getElementById('cliPivotBody');
+            const locations = ['BAY','BGM','BJP','CLR','HPT','UBL','VSG','TNGL'];
+            let clis = Object.keys(cliBPAMap).sort();
+
+            // Determine location for each CLI from their crew IDs
+            const cliLocationMap = {};
+            clis.forEach(cli => {
+                const crewIds = [...(cliBPAMap[cli].crewIds || [])];
+                const locCounts = {};
+                crewIds.forEach(cid => {
+                    const loc = locations.find(l => cid.includes(l)) || 'Other';
+                    locCounts[loc] = (locCounts[loc] || 0) + 1;
+                });
+                cliLocationMap[cli] = Object.entries(locCounts).sort((a,b) => b[1]-a[1])[0]?.[0] || '';
+            });
+
+            if (locationFilter) {
+                clis = clis.filter(cli => cliLocationMap[cli] === locationFilter);
+            }
+
+            let html = '';
+            let sno = 0;
+            clis.forEach((cli, idx) => {
+                const data = cliBPAMap[cli];
+                const loc = cliLocationMap[cli] || '';
+
+                // If month filter active, compute month-specific stats
+                let count = data.count;
+                let uniqueCrews = data.crewIds.size;
+                let lastDate = data.lastDate || '-';
+                if (monthFilter) {
+                    count = 0;
+                    const monthCrewIds = new Set();
+                    let mLastDate = '';
+                    allData.forEach(row => {
+                        if ((row['Name of the CLI Analysis done by'] || '').trim() === cli && row['MonthYear'] === monthFilter) {
+                            count++;
+                            if (row['Crew ID']) monthCrewIds.add(row['Crew ID']);
+                            if (dateToSortable(row['Date']) > dateToSortable(mLastDate)) mLastDate = row['Date'];
+                        }
+                    });
+                    uniqueCrews = monthCrewIds.size;
+                    lastDate = mLastDate || '-';
+                    if (count === 0) return; // skip CLIs with no data in selected month
+                }
+
+                const defCount = cliDefCount[cli] || 0;
+                sno++;
+                html += `<tr>
+                    <td class="sno-cell">${sno}</td>
+                    <td><strong>${cli}</strong></td>
+                    <td>${loc}</td>
+                    <td>${count}</td>
+                    <td>${uniqueCrews}</td>
+                    <td>${lastDate}</td>
+                    <td style="text-align:center;${defCount > 0 ? 'font-weight:700;color:#e74c3c;' : 'color:#999;'}">${defCount || '-'}</td>
+                    <td><button class="hyperlink-btn" onclick="filterMainByCLI('${cli.replace(/'/g, "\\'")}')">📊 View</button></td>
+                </tr>`;
+            });
+
+            tbody.innerHTML = html || '<tr><td colspan="9" style="text-align:center;padding:20px;color:#999;">No data available</td></tr>';
+        }
+
+        // Navigate to Main Data tab filtered by CLI analyst name and optional month
+        function filterMainByCLI(cliName, monthYear) {
+            switchTab('mainData');
+            // Reset filters first
+            document.getElementById('locationFilter').value = '';
+            document.getElementById('cliFilter').value = '';
+            document.getElementById('crewFilter').value = '';
+            document.getElementById('monthFilter').value = '';
+            populateFilters();
+            // Filter allData by the CLI analyst name and optional month
+            filteredData = allData.filter(row => {
+                const matchCLI = (row['Name of the CLI Analysis done by'] || '').trim() === cliName;
+                const matchMonth = !monthYear || row['MonthYear'] === monthYear;
+                return matchCLI && matchMonth;
+            });
+            mainCurrentPage = 1;
+            renderTable();
+            updateRecordCount();
+            const suffix = monthYear ? ` (filtered by CLI: ${cliName}, Month: ${monthYear})` : ` (filtered by CLI: ${cliName})`;
+            document.getElementById('recordCount').textContent += suffix;
+        }
+
+        // ---- CREW COVERAGE TABLE ----
+        function renderCrewCoverage(nliCrewMap, nliBPAMap, nliFilter, statusFilter, desigFilter, crewDefCount, monthFilter) {
+            crewDefCount = crewDefCount || {};
+            const tbody = document.getElementById('crewCoverageBody');
+            const locations = ['BAY','BGM','BJP','CLR','HPT','UBL','VSG','TNGL'];
+
+            // Filter source BPA data by month if needed
+            const sourceData = monthFilter ? allData.filter(r => r['MonthYear'] === monthFilter) : allData;
+
+            // Build month-specific nliBPAMap if month filter is active
+            let effectiveNliBPAMap = nliBPAMap;
+            if (monthFilter) {
+                effectiveNliBPAMap = {};
+                sourceData.forEach(row => {
+                    const nli = row["Crew's Nominated CLI"] || '';
+                    const crewId = row["Crew ID"] || '';
+                    const dateStr = row['Date'] || '';
+                    if (nli) {
+                        if (!effectiveNliBPAMap[nli]) effectiveNliBPAMap[nli] = {};
+                        if (!effectiveNliBPAMap[nli][crewId]) effectiveNliBPAMap[nli][crewId] = { count: 0, lastDate: '', dates: [] };
+                        effectiveNliBPAMap[nli][crewId].count++;
+                        effectiveNliBPAMap[nli][crewId].dates.push(dateStr);
+                        if (dateToSortable(dateStr) > dateToSortable(effectiveNliBPAMap[nli][crewId].lastDate)) {
+                            effectiveNliBPAMap[nli][crewId].lastDate = dateStr;
+                        }
+                    }
+                });
+            }
+
+            // Build comprehensive crew list
+            const crewList = [];
+            const processedCrews = new Set();
+
+            // From crew master (primary source)
+            crewMasterData.forEach(cm => {
+                if (processedCrews.has(cm.crewId)) return;
+                processedCrews.add(cm.crewId);
+
+                // Find NLI: from master, or from BPA data, or reverse-lookup nliCrewMap
+                let nli = cm.nli || crewMasterNLIMap[cm.crewId] || '';
+                if (!nli) {
+                    // Find from BPA data
+                    const bpaRow = allData.find(r => r['Crew ID'] === cm.crewId);
+                    if (bpaRow) nli = bpaRow["Crew's Nominated CLI"] || '';
+                }
+                if (!nli) {
+                    // Reverse lookup: find which NLI has this crewId in nliCrewMap
+                    for (const [nliName, crewSet] of Object.entries(nliCrewMap)) {
+                        if (crewSet.has && crewSet.has(cm.crewId)) { nli = nliName; break; }
+                    }
+                }
+
+                const loc = locations.find(l => cm.crewId.includes(l)) || cm.location || '';
+
+                // Count BPAs for this crew
+                let bpaCount = 0;
+                let lastDate = '';
+                Object.entries(effectiveNliBPAMap).forEach(([n, crews]) => {
+                    if (crews[cm.crewId]) {
+                        bpaCount += crews[cm.crewId].count;
+                        if (dateToSortable(crews[cm.crewId].lastDate) > dateToSortable(lastDate)) lastDate = crews[cm.crewId].lastDate;
+                    }
+                });
+
+                crewList.push({
+                    crewId: cm.crewId,
+                    crewName: cm.crewName || crewMasterMap[cm.crewId] || '',
+                    desig: cm.desig || crewMasterDesigMap[cm.crewId] || '',
+                    nli: nli,
+                    location: loc,
+                    bpaCount: bpaCount,
+                    lastDate: lastDate,
+                    status: bpaCount > 0 ? 'done' : 'pending'
+                });
+            });
+
+            // Also add crews from BPA data not in master
+            sourceData.forEach(row => {
+                const cid = row['Crew ID'] || '';
+                if (cid && !processedCrews.has(cid)) {
+                    processedCrews.add(cid);
+                    const nli = row["Crew's Nominated CLI"] || '';
+                    const loc = locations.find(l => cid.includes(l)) || '';
+                    let bpaCount = 0;
+                    let lastDate = '';
+                    Object.entries(effectiveNliBPAMap).forEach(([n, crews]) => {
+                        if (crews[cid]) {
+                            bpaCount += crews[cid].count;
+                            if (dateToSortable(crews[cid].lastDate) > dateToSortable(lastDate)) lastDate = crews[cid].lastDate;
+                        }
+                    });
+                    crewList.push({
+                        crewId: cid,
+                        crewName: crewMasterMap[cid] || row['Crew Name'] || '',
+                        desig: crewMasterDesigMap[cid] || '',
+                        nli: nli,
+                        location: loc,
+                        bpaCount: bpaCount,
+                        lastDate: lastDate,
+                        status: bpaCount > 0 ? 'done' : 'pending'
+                    });
+                }
+            });
+
+            // Apply filters
+            let filtered = crewList;
+            if (nliFilter) filtered = filtered.filter(c => c.nli === nliFilter);
+            if (desigFilter) filtered = filtered.filter(c => c.desig === desigFilter);
+            if (statusFilter) filtered = filtered.filter(c => c.status === statusFilter);
+
+            // Sort: pending first, then by NLI
+            filtered.sort((a, b) => {
+                if (a.status !== b.status) return a.status === 'pending' ? -1 : 1;
+                return (a.nli + a.crewId).localeCompare(b.nli + b.crewId);
+            });
+
+            let html = '';
+            // Paginate crew coverage
+            const crewTotalRows = filtered.length;
+            const crewPS = crewPageSize;
+            const crewTotalPages = crewPS > 0 ? Math.ceil(crewTotalRows / crewPS) : 1;
+            if (crewCurrentPage > crewTotalPages) crewCurrentPage = crewTotalPages || 1;
+            const crewStartIdx = crewPS > 0 ? (crewCurrentPage - 1) * crewPS : 0;
+            const crewEndIdx = crewPS > 0 ? Math.min(crewStartIdx + crewPS, crewTotalRows) : crewTotalRows;
+            const crewPageData = filtered.slice(crewStartIdx, crewEndIdx);
+
+            crewPageData.forEach((crew, idx) => {
+                const globalIdx = crewStartIdx + idx;
+                const statusBadge = crew.status === 'done'
+                    ? `<span class="crew-badge-done">✅ Done (${crew.bpaCount})</span>`
+                    : `<span class="crew-badge-pending">❌ Pending</span>`;
+                const viewBtn = crew.bpaCount > 0
+                    ? `<button class="hyperlink-btn" onclick="viewInMainTab('${crew.nli}','${crew.crewId}')">📊 View</button>`
+                    : '-';
+
+                const defCount = crewDefCount[crew.crewId] || 0;
+                html += `<tr>
+                    <td class="sno-cell">${globalIdx + 1}</td>
+                    <td><strong>${crew.crewId}</strong></td>
+                    <td>${crew.crewName}</td>
+                    <td>${crew.desig || '-'}</td>
+                    <td>${crew.nli || '-'}</td>
+                    <td>${crew.bpaCount}</td>
+                    <td>${crew.lastDate || '-'}</td>
+                    <td style="text-align:center;${defCount > 0 ? 'font-weight:700;color:#e74c3c;' : 'color:#999;'}">${defCount || '-'}</td>
+                    <td>${statusBadge}</td>
+                    <td>${viewBtn}</td>
+                </tr>`;
+            });
+
+            tbody.innerHTML = html || '<tr><td colspan="10" style="text-align:center;padding:20px;color:#999;">No data available</td></tr>';
+
+            renderPaginationControls('crewPagination', crewCurrentPage, crewTotalPages, crewTotalRows, crewPS, function(page) {
+                crewCurrentPage = page;
+                renderCrewCoverage(nliCrewMap, nliBPAMap, nliFilter, statusFilter, desigFilter, crewDefCount, monthFilter);
+            });
+        }
+
+        // ---- DEFICIENCY DETAIL TABLE ----
+        function renderDeficiencyDetail(records) {
+            const tbody = document.getElementById('deficiencyBody');
+            if (!tbody) return;
+
+            const totalRows = records.length;
+            const ps = defPageSize;
+            const totalPages = ps > 0 ? Math.ceil(totalRows / ps) : 1;
+            if (defCurrentPage > totalPages) defCurrentPage = totalPages || 1;
+            const startIdx = ps > 0 ? (defCurrentPage - 1) * ps : 0;
+            const endIdx = ps > 0 ? Math.min(startIdx + ps, totalRows) : totalRows;
+            const pageData = records.slice(startIdx, endIdx);
+
+            let html = '';
+            pageData.forEach((rec, idx) => {
+                const globalIdx = startIdx + idx;
+                const reportCell = rec.report && (rec.report.startsWith('http://') || rec.report.startsWith('https://'))
+                    ? `<a href="${rec.report}" target="_blank" class="report-link">View</a>`
+                    : (rec.report || '-');
+                html += `<tr>
+                    <td class="sno-cell">${globalIdx + 1}</td>
+                    <td>${rec.date || '-'}</td>
+                    <td><strong>${rec.crewId}</strong></td>
+                    <td>${rec.crewName || '-'}</td>
+                    <td>${rec.nli || '-'}</td>
+                    <td>${rec.cli || '-'}</td>
+                    <td>${rec.section || '-'}</td>
+                    <td>${rec.trainNo || '-'}</td>
+                    <td style="color:#e74c3c;font-weight:600;max-width:300px;">${rec.deficiency}</td>
+                    <td>${reportCell}</td>
+                </tr>`;
+            });
+
+            tbody.innerHTML = html || '<tr><td colspan="10" style="text-align:center;padding:20px;color:#999;">No deficiencies found (all NIL)</td></tr>';
+
+            renderPaginationControls('deficiencyPagination', defCurrentPage, totalPages, totalRows, ps, function(page) {
+                defCurrentPage = page;
+                renderDeficiencyDetail(records);
+            });
+        }
+
+        // ---- MONTHLY BREAKDOWN TABLE ----
+        function renderMonthlyBreakdown(analyzerBPAMap, monthBPACount, allLIs) {
+            const thead = document.getElementById('monthlyBreakdownHead');
+            const tbody = document.getElementById('monthlyBreakdownBody');
+
+            const monthLabels = Object.keys(monthBPACount).sort((a, b) => {
+                const [ma, ya] = a.split('-').map(Number);
+                const [mb, yb] = b.split('-').map(Number);
+                return (ya * 100 + ma) - (yb * 100 + mb);
+            });
+
+            // Header: Month | LI1 | LI2 | ... | Total
+            const sortedLIs = [...allLIs].sort();
+            thead.innerHTML = `<tr><th class="sticky-left">Month-Year</th>${sortedLIs.map(n => `<th>${n}</th>`).join('')}<th class="sticky-right">Total</th></tr>`;
+
+            let html = '';
+            monthLabels.forEach(month => {
+                let rowTotal = 0;
+                const cells = sortedLIs.map(li => {
+                    const monthMap = analyzerBPAMap[li] || {};
+                    const md = monthMap[month];
+                    const count = md ? md.total : 0;
+                    rowTotal += count;
+                    return `<td style="text-align:center;${count > 0 ? 'font-weight:700;color:#27ae60;' : 'color:#ccc;'}">${count || '-'}</td>`;
+                }).join('');
+                html += `<tr><td class="sticky-left"><strong>${month}</strong></td>${cells}<td class="sticky-right" style="text-align:center;font-weight:800;">${rowTotal}</td></tr>`;
+            });
+
+            // Footer totals
+            let grandTotal = 0;
+            const footerCells = sortedLIs.map(li => {
+                const monthMap = analyzerBPAMap[li] || {};
+                const total = Object.values(monthMap).reduce((s, md) => s + md.total, 0);
+                grandTotal += total;
+                return `<td style="text-align:center;font-weight:800;">${total}</td>`;
+            }).join('');
+            html += `<tr style="background:#f0f4ff;"><td class="sticky-left"><strong>TOTAL</strong></td>${footerCells}<td class="sticky-right" style="text-align:center;font-weight:900;color:#667eea;">${grandTotal}</td></tr>`;
+
+            tbody.innerHTML = html || '<tr><td colspan="' + (sortedLIs.length + 2) + '" style="text-align:center;padding:20px;color:#999;">No data available</td></tr>';
+        }
+
+        // ---- MONTHLY CLI BREAKDOWN TABLE ----
+        function renderMonthlyCLIBreakdown(analyzerBPAMap, monthBPACount, allLIs) {
+            const thead = document.getElementById('monthlyCLIBreakdownHead');
+            const tbody = document.getElementById('monthlyCLIBreakdownBody');
+
+            const monthLabels = Object.keys(monthBPACount).sort((a, b) => {
+                const [ma, ya] = a.split('-').map(Number);
+                const [mb, yb] = b.split('-').map(Number);
+                return (ya * 100 + ma) - (yb * 100 + mb);
+            });
+
+            // This table shows only Nominated LP BPAs per LI per month
+            const sortedLIs = [...allLIs].sort();
+            thead.innerHTML = `<tr><th class="sticky-left">Month-Year</th>${sortedLIs.map(c => `<th>${c}</th>`).join('')}<th class="sticky-right">Total</th></tr>`;
+
+            let html = '';
+            monthLabels.forEach(month => {
+                let rowTotal = 0;
+                const cells = sortedLIs.map(li => {
+                    const monthMap = analyzerBPAMap[li] || {};
+                    const md = monthMap[month];
+                    const count = md ? md.nominated : 0;
+                    rowTotal += count;
+                    return `<td style="text-align:center;${count > 0 ? 'font-weight:700;color:#27ae60;' : 'color:#ccc;'}">${count || '-'}</td>`;
+                }).join('');
+                html += `<tr><td class="sticky-left"><strong>${month}</strong></td>${cells}<td class="sticky-right" style="text-align:center;font-weight:800;">${rowTotal}</td></tr>`;
+            });
+
+            // Footer totals
+            let grandTotal = 0;
+            const footerCells = sortedLIs.map(li => {
+                const monthMap = analyzerBPAMap[li] || {};
+                const total = Object.values(monthMap).reduce((s, md) => s + md.nominated, 0);
+                grandTotal += total;
+                return `<td style="text-align:center;font-weight:800;">${total}</td>`;
+            }).join('');
+            html += `<tr style="background:#f0f4ff;"><td class="sticky-left"><strong>TOTAL</strong></td>${footerCells}<td class="sticky-right" style="text-align:center;font-weight:900;color:#667eea;">${grandTotal}</td></tr>`;
+
+            tbody.innerHTML = html || '<tr><td colspan="' + (sortedLIs.length + 2) + '" style="text-align:center;padding:20px;color:#999;">No data available</td></tr>';
+        }
+
+        // Load data on page load
+        loadData();
+
+    </script>
+
+    <!-- Back to Top Button -->
+    <button id="backToTop" title="Back to top">&#8679;</button>
+
+    <script>
+        // Back-to-top button logic
+        (function() {
+            const btn = document.getElementById('backToTop');
+            window.addEventListener('scroll', function() {
+                if (window.scrollY > 300) {
+                    btn.classList.add('visible');
+                } else {
+                    btn.classList.remove('visible');
+                }
+            });
+            btn.addEventListener('click', function() {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+        })();
+    </script>
+</body>
+</html>
