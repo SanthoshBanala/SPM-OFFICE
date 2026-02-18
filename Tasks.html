@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Task Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f7fa;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+
+        .task-form {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr auto;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        input, select, button {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .btn-add {
+            background: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+
+        .btn-add:hover {
+            background: #2980b9;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .stat-card h3 {
+            color: #7f8c8d;
+            font-size: 14px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .stat-card .number {
+            font-size: 32px;
+            font-weight: bold;
+        }
+
+        .stat-card.not-started .number { color: #95a5a6; }
+        .stat-card.in-progress .number { color: #f39c12; }
+        .stat-card.completed .number { color: #27ae60; }
+        .stat-card.total .number { color: #3498db; }
+
+        .filter-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .filter-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-controls label {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .tasks-section {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .task-item {
+            display: grid;
+            grid-template-columns: auto 2fr 1fr 1fr auto auto;
+            gap: 15px;
+            align-items: center;
+            padding: 15px;
+            border: 1px solid #ecf0f1;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            transition: all 0.3s;
+        }
+
+        .task-item:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+        .task-checkbox {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .task-title {
+            font-weight: 500;
+            color: #2c3e50;
+        }
+
+        .task-title.completed {
+            text-decoration: line-through;
+            color: #95a5a6;
+        }
+
+        .task-date {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .status-badge.not-started {
+            background: #ecf0f1;
+            color: #7f8c8d;
+        }
+
+        .status-badge.in-progress {
+            background: #fef5e7;
+            color: #f39c12;
+        }
+
+        .status-badge.completed {
+            background: #d5f4e6;
+            color: #27ae60;
+        }
+
+        .btn-delete {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .btn-delete:hover {
+            background: #c0392b;
+        }
+
+        .status-select {
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #95a5a6;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .task-form {
+                grid-template-columns: 1fr;
+            }
+
+            .task-item {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📋 Daily Task Dashboard <span id="syncStatus" style="font-size: 13px; padding: 4px 12px; border-radius: 20px; background: #fef5e7; color: #f39c12; vertical-align: middle;">⏳ Connecting...</span></h1>
+            <form id="taskForm" class="task-form">
+                <input type="text" id="taskTitle" placeholder="Task title" required>
+                <input type="date" id="taskStartDate" required>
+                <input type="date" id="taskEndDate" required>
+                <select id="taskStatus" required>
+                    <option value="not-started">Not Started</option>
+                    <option value="in-progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                </select>
+                <button type="submit" class="btn-add">+ Add Task</button>
+            </form>
+        </header>
+
+        <div class="stats">
+            <div class="stat-card total">
+                <h3>Total Tasks</h3>
+                <div class="number" id="totalTasks">0</div>
+            </div>
+            <div class="stat-card not-started">
+                <h3>Not Started</h3>
+                <div class="number" id="notStartedCount">0</div>
+            </div>
+            <div class="stat-card in-progress">
+                <h3>In Progress</h3>
+                <div class="number" id="inProgressCount">0</div>
+            </div>
+            <div class="stat-card completed">
+                <h3>Completed</h3>
+                <div class="number" id="completedCount">0</div>
+            </div>
+        </div>
+
+        <div class="filter-section">
+            <div class="filter-controls">
+                <label>Filter by Status:</label>
+                <select id="filterStatus">
+                    <option value="all">All Tasks</option>
+                    <option value="not-started">Not Started</option>
+                    <option value="in-progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                </select>
+                
+                <label style="margin-left: 20px;">Filter by Date:</label>
+                <input type="date" id="filterStartDate">
+                <label>to</label>
+                <input type="date" id="filterEndDate">
+                
+                <button onclick="clearFilters()" style="margin-left: auto;" class="btn-add">Clear Filters</button>
+            </div>
+        </div>
+
+        <div class="tasks-section">
+            <h2 style="margin-bottom: 20px; color: #2c3e50;">Tasks</h2>
+            <div id="tasksList"></div>
+        </div>
+    </div>
+
+    <script>
+        // ==============================================
+        // Google Sheets Configuration (Service Account)
+        // WARNING: Do NOT host this file publicly — private key is embedded.
+        // ==============================================
+        const SHEET_CONFIG = {
+            spreadsheetId: '1m-yXraiYRPR_uVjs59GrlJQ30KTOa6eTXcEIVUIcp6o',
+            sheetName: 'Sheet1',
+            clientEmail: 'dailyupdate@galvanic-veld-414106.iam.gserviceaccount.com',
+            privateKey: "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCoPqu4jbX4ct6y\ny7/PN4BQxmZeSs5qLI69FdhtSpT4eON8k4pDOSSKhe26PgzHTOtHvwhf0psbTNau\nwj80vQ6zvIq9nUqLCQziaVnAgzHtUSvmzc9cvax1z9EtehUzzCG9UkuvjMJMG6Lt\nHTgGH7EFHtVV4/qJAAKXX0hTmf+BYXBl1jnqX4v0nYjvfebngKHPoPOCKgepI407\nFlzeUuyMstFl9kQpKW4xoXTTxlkMrALKYUFScjiXGgALsv0D2lfwGMz0PswywTgx\nO0PZiwTlOFu6xuCTxuNdCMrZoUeZf/rps25T5H3yWHFYON1TNjZub/ENA84I1NEg\n9gS3S/6vAgMBAAECggEAREpn9nni/o1V0ro8SZaMKX1WqPhxT4x1hc+7sSUAUdjz\n8amLihzENcwGAj5UfoM8zzr94bNBTTQDwhzLfhMtSAyEPlH9o3DRf4dmrGs0VVFI\n4h7xCAJfYdSwYea3e3ZkzY19dizK4wymtdtR1b6AYoUw7/OhSoGsC5hb6b9NBE0I\nrqMYZloPuoR8Q6dhmb1cyeIlV/inHFveh2bgkUqKJPTpRKm9sHef2uTmLlQ8LA7l\nydyshIhURUHkiw5p70t1Vp5h4eYXOg+x5R04wM6Ny39WfHvuCiTawFeWS6EZJ7LG\nLA+B9XVPyOA0et7xqkmNG9usgOZVr2wRG7HMXOtmPQKBgQDpEFAqiy/P0by9Lvye\n//afJrRx6H6QT1tNfZPxbYW7GWPhgOVD9TJWdI/5je01FVq5qj8Ln8qG1T9sVIHr\na0G0t4IXhiMmST8LcEeR/xO0RXui4WusJKPJOZSD0ND73mcvFu1tcbQ/VEJpAHMY\nYPyPV7KWf+v4D/unOzm+DrSENQKBgQC4zVfqOIKKKRo7LTENTkGN/dji812mUDiw\n9VYdAeE9VKgrQvVKkk+npMVyBb8r4iecy3E12svVIyQlWoSCcH7+k4xOQPC2KPUE\nefBaEntLFJC/YCEvNTWZeZiK2Wn+vqJZ5tdw6oKcJY02LJP/AyQqFIh8/jWhIbUT\nPvX2sJnL0wKBgCMGcZXDLx9DPOMNgad/fhey4GFR+FtFocoGekpJFFTm3uzPyySo\nX7VAdTaizqgwml7Wp/zeObiDqbFlDdVMXCaFgYZ5gSTK0y+r4wWc2OA5pPf4eo73\nPqoJ/jjFE/MWHFmmT24oLVdrGUPgbmuWf74nBs65UMQJ2t7p9qaKXTSVAoGAGXuP\nTOff8Ec8q75OjkQlO/wuBRWD62QSfSxHZJaWxYs/6T9BbbgBLd/FrjRmqRl1VuSi\nxsdV5h0DZfc2YHo8uMQFy+CekK/TIXvjDbiQscizMQCDcuwGaRRgWX0jZZJJ9tWj\nDZn4yqlO8JJzEe4P9ZGBRKMVKBPq0S2UYyD1BCsCgYAkqILIm41fAWjmeuZhXGBT\nQ7eY6J5qv5224r1Vwoe5dzzYuHXiD8n51MBoP70mwkSG4eq90ejLhQUH5AAjBwaj\nH0CL4JfNXqvqnNPHrlq5jj6GatwUJWJnBruCyxqaBx0vJNKpmzC6BdCn0eZUyawW\nLrrAs2iZ5d+GWm6KP0LXlg==\n-----END PRIVATE KEY-----\n",
+            scopes: 'https://www.googleapis.com/auth/spreadsheets'
+        };
+
+        let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+        let accessToken = null;
+        let tokenExpiry = 0;
+        let sheetsConnected = false;
+
+        // ==============================================
+        // Sync Status Indicator
+        // ==============================================
+        function setSyncStatus(status) {
+            const el = document.getElementById('syncStatus');
+            switch (status) {
+                case 'syncing':
+                    el.style.background = '#fef5e7'; el.style.color = '#f39c12';
+                    el.textContent = '⏳ Syncing...';
+                    break;
+                case 'connected':
+                    el.style.background = '#d5f4e6'; el.style.color = '#27ae60';
+                    el.textContent = '✅ Sheets Connected';
+                    break;
+                case 'offline':
+                    el.style.background = '#fde8e8'; el.style.color = '#e74c3c';
+                    el.textContent = '⚠️ Offline (localStorage)';
+                    break;
+            }
+        }
+
+        // ==============================================
+        // JWT Authentication (Service Account)
+        // ==============================================
+        function base64urlEncode(arrayBuffer) {
+            const bytes = new Uint8Array(arrayBuffer);
+            let binary = '';
+            bytes.forEach(b => binary += String.fromCharCode(b));
+            return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
+
+        function str2ab(str) {
+            return new TextEncoder().encode(str);
+        }
+
+        function pemToArrayBuffer(pem) {
+            const b64 = pem
+                .replace(/-----BEGIN PRIVATE KEY-----/, '')
+                .replace(/-----END PRIVATE KEY-----/, '')
+                .replace(/\s/g, '');
+            const binary = atob(b64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            return bytes.buffer;
+        }
+
+        async function importPrivateKey(pem) {
+            return crypto.subtle.importKey(
+                'pkcs8',
+                pemToArrayBuffer(pem),
+                { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+                false,
+                ['sign']
+            );
+        }
+
+        async function createSignedJWT() {
+            const now = Math.floor(Date.now() / 1000);
+            const header = { alg: 'RS256', typ: 'JWT' };
+            const payload = {
+                iss: SHEET_CONFIG.clientEmail,
+                scope: SHEET_CONFIG.scopes,
+                aud: 'https://oauth2.googleapis.com/token',
+                exp: now + 3600,
+                iat: now
+            };
+            const headerB64 = base64urlEncode(str2ab(JSON.stringify(header)));
+            const payloadB64 = base64urlEncode(str2ab(JSON.stringify(payload)));
+            const signingInput = `${headerB64}.${payloadB64}`;
+
+            const key = await importPrivateKey(SHEET_CONFIG.privateKey);
+            const signature = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, str2ab(signingInput));
+            return `${signingInput}.${base64urlEncode(signature)}`;
+        }
+
+        async function getAccessToken() {
+            if (accessToken && Date.now() < tokenExpiry) return accessToken;
+            const jwt = await createSignedJWT();
+            const resp = await fetch('https://oauth2.googleapis.com/token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`
+            });
+            const data = await resp.json();
+            if (data.error) throw new Error(`Auth error: ${data.error_description}`);
+            accessToken = data.access_token;
+            tokenExpiry = Date.now() + (data.expires_in - 60) * 1000;
+            return accessToken;
+        }
+
+        // ==============================================
+        // Google Sheets API Helpers
+        // ==============================================
+        async function sheetsAPI(endpoint, method = 'GET', body = null) {
+            const token = await getAccessToken();
+            const base = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_CONFIG.spreadsheetId}`;
+            const options = {
+                method,
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+            };
+            if (body) options.body = JSON.stringify(body);
+            const resp = await fetch(`${base}${endpoint}`, options);
+            if (!resp.ok) {
+                const err = await resp.json();
+                throw new Error(`Sheets API: ${JSON.stringify(err.error?.message || err)}`);
+            }
+            return resp.json();
+        }
+
+        async function ensureHeaderRow() {
+            try {
+                const data = await sheetsAPI(`/values/${SHEET_CONFIG.sheetName}!A1:F1`);
+                if (!data.values || data.values.length === 0 || data.values[0][0] !== 'ID') {
+                    await sheetsAPI(
+                        `/values/${SHEET_CONFIG.sheetName}!A1:F1?valueInputOption=RAW`, 'PUT',
+                        { range: `${SHEET_CONFIG.sheetName}!A1:F1`, majorDimension: 'ROWS',
+                          values: [['ID', 'Title', 'StartDate', 'EndDate', 'Status', 'CreatedAt']] }
+                    );
+                }
+            } catch (e) { console.error('Header row check failed:', e); }
+        }
+
+        async function fetchTasksFromSheet() {
+            const data = await sheetsAPI(`/values/${SHEET_CONFIG.sheetName}!A2:F`);
+            if (!data.values || data.values.length === 0) return [];
+            return data.values.map(row => ({
+                id: parseInt(row[0]),
+                title: row[1] || '',
+                startDate: row[2] || '',
+                endDate: row[3] || '',
+                status: row[4] || 'not-started',
+                createdAt: row[5] || ''
+            })).filter(t => !isNaN(t.id));
+        }
+
+        async function writeAllTasksToSheet() {
+            // Clear existing data rows, then write fresh
+            await sheetsAPI(`/values/${SHEET_CONFIG.sheetName}!A2:F:clear`, 'POST');
+            if (tasks.length > 0) {
+                await sheetsAPI(
+                    `/values/${SHEET_CONFIG.sheetName}!A2:F?valueInputOption=RAW`, 'PUT',
+                    { range: `${SHEET_CONFIG.sheetName}!A2:F`, majorDimension: 'ROWS',
+                      values: tasks.map(t => [
+                          t.id.toString(), t.title, t.startDate, t.endDate, t.status, t.createdAt
+                      ])
+                    }
+                );
+            }
+        }
+
+        // ==============================================
+        // Task CRUD (syncs to Sheets + localStorage)
+        // ==============================================
+        async function saveTasks() {
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            if (sheetsConnected) {
+                try {
+                    setSyncStatus('syncing');
+                    await writeAllTasksToSheet();
+                    setSyncStatus('connected');
+                } catch (e) {
+                    console.error('Sheet save failed:', e);
+                    setSyncStatus('offline');
+                }
+            }
+        }
+
+        async function deleteTask(id) {
+            if (confirm('Are you sure you want to delete this task?')) {
+                tasks = tasks.filter(task => task.id !== id);
+                await saveTasks();
+                renderTasks();
+                updateStats();
+            }
+        }
+
+        async function updateTaskStatus(id, newStatus) {
+            const task = tasks.find(t => t.id === id);
+            if (task) {
+                task.status = newStatus;
+                await saveTasks();
+                renderTasks();
+                updateStats();
+            }
+        }
+
+        function clearFilters() {
+            document.getElementById('filterStatus').value = 'all';
+            document.getElementById('filterStartDate').value = '';
+            document.getElementById('filterEndDate').value = '';
+            renderTasks();
+        }
+
+        // ==============================================
+        // Rendering
+        // ==============================================
+        function renderTasks() {
+            const filterStatus = document.getElementById('filterStatus').value;
+            const filterStartDate = document.getElementById('filterStartDate').value;
+            const filterEndDate = document.getElementById('filterEndDate').value;
+
+            let filteredTasks = tasks.filter(task => {
+                const statusMatch = filterStatus === 'all' || task.status === filterStatus;
+                const startDateMatch = !filterStartDate || new Date(task.startDate) >= new Date(filterStartDate);
+                const endDateMatch = !filterEndDate || new Date(task.endDate) <= new Date(filterEndDate);
+                return statusMatch && startDateMatch && endDateMatch;
+            });
+
+            filteredTasks.sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
+
+            const tasksList = document.getElementById('tasksList');
+
+            if (filteredTasks.length === 0) {
+                tasksList.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No tasks found</h3>
+                        <p>Start by adding a new task above</p>
+                    </div>`;
+                return;
+            }
+
+            tasksList.innerHTML = filteredTasks.map(task => `
+                <div class="task-item">
+                    <input type="checkbox" class="task-checkbox"
+                        ${task.status === 'completed' ? 'checked' : ''}
+                        onchange="updateTaskStatus(${task.id}, this.checked ? 'completed' : 'in-progress')">
+                    <div class="task-title ${task.status === 'completed' ? 'completed' : ''}">${task.title}</div>
+                    <div class="task-date">${formatDateRange(task.startDate, task.endDate)}</div>
+                    <select class="status-select" onchange="updateTaskStatus(${task.id}, this.value)">
+                        <option value="not-started" ${task.status === 'not-started' ? 'selected' : ''}>Not Started</option>
+                        <option value="in-progress" ${task.status === 'in-progress' ? 'selected' : ''}>In Progress</option>
+                        <option value="completed" ${task.status === 'completed' ? 'selected' : ''}>Completed</option>
+                    </select>
+                    <span class="status-badge ${task.status}">${formatStatus(task.status)}</span>
+                    <button class="btn-delete" onclick="deleteTask(${task.id})">Delete</button>
+                </div>
+            `).join('');
+        }
+
+        function formatDateRange(start, end) {
+            const s = new Date(start), e = new Date(end);
+            const opt = { month: 'short', day: 'numeric', year: 'numeric' };
+            if (start === end) return s.toLocaleDateString('en-US', opt);
+            return `${s.toLocaleDateString('en-US', opt)} - ${e.toLocaleDateString('en-US', opt)}`;
+        }
+
+        function formatStatus(status) {
+            return status.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        }
+
+        function updateStats() {
+            document.getElementById('totalTasks').textContent = tasks.length;
+            document.getElementById('notStartedCount').textContent = tasks.filter(t => t.status === 'not-started').length;
+            document.getElementById('inProgressCount').textContent = tasks.filter(t => t.status === 'in-progress').length;
+            document.getElementById('completedCount').textContent = tasks.filter(t => t.status === 'completed').length;
+        }
+
+        // ==============================================
+        // App Initialization
+        // ==============================================
+        async function initApp() {
+            // Set default dates
+            document.getElementById('taskStartDate').valueAsDate = new Date();
+            document.getElementById('taskEndDate').valueAsDate = new Date();
+
+            // Show loading
+            document.getElementById('tasksList').innerHTML =
+                '<div class="empty-state"><h3>Loading tasks from Google Sheets...</h3></div>';
+
+            // Try connecting to Google Sheets
+            try {
+                await ensureHeaderRow();
+                const sheetTasks = await fetchTasksFromSheet();
+                tasks = sheetTasks;
+                localStorage.setItem('tasks', JSON.stringify(tasks));
+                sheetsConnected = true;
+                setSyncStatus('connected');
+            } catch (err) {
+                console.error('Google Sheets connection failed:', err);
+                sheetsConnected = false;
+                setSyncStatus('offline');
+                // Fall back to localStorage (already loaded above)
+            }
+
+            // Date-change check: reset tasks in range to "Not Started"
+            const today = new Date().toISOString().split('T')[0];
+            const lastDate = localStorage.getItem('lastCheckedDate');
+            if (lastDate && lastDate !== today) {
+                let changed = false;
+                tasks.forEach(task => {
+                    if (task.startDate <= today && task.endDate >= today) {
+                        task.status = 'not-started';
+                        changed = true;
+                    }
+                });
+                if (changed) await saveTasks();
+            }
+            localStorage.setItem('lastCheckedDate', today);
+
+            renderTasks();
+            updateStats();
+        }
+
+        // Form submission
+        document.getElementById('taskForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const task = {
+                id: Date.now(),
+                title: document.getElementById('taskTitle').value,
+                startDate: document.getElementById('taskStartDate').value,
+                endDate: document.getElementById('taskEndDate').value,
+                status: document.getElementById('taskStatus').value,
+                createdAt: new Date().toISOString()
+            };
+            tasks.push(task);
+            await saveTasks();
+            renderTasks();
+            updateStats();
+            this.reset();
+            document.getElementById('taskStartDate').valueAsDate = new Date();
+            document.getElementById('taskEndDate').valueAsDate = new Date();
+        });
+
+        // Filter listeners
+        document.getElementById('filterStatus').addEventListener('change', renderTasks);
+        document.getElementById('filterStartDate').addEventListener('change', renderTasks);
+        document.getElementById('filterEndDate').addEventListener('change', renderTasks);
+
+        // Launch
+        initApp();
+    </script>
+</body>
+</html>
